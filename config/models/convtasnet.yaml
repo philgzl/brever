@@ -1,0 +1,54 @@
+arch: convtasnet
+seed: 0
+train_path: none
+val_path: none
+dataset:
+  segment_length: 0.0
+  overlap_length: 0.0
+  fs: 16000
+  sources:
+  - mixture
+  - foreground
+  segment_strategy: pass
+  max_segment_length: 0.0
+  tar: true
+trainer:
+  workers: 4
+  epochs: 100
+  device: cuda
+  batch_sampler: bucket
+  batch_size: 128
+  num_buckets: 10
+  dynamic_batch_size: true
+  fs: 16000
+  ema: false
+  ema_decay: 0.999
+  ignore_checkpoint: false
+  preload: false
+  ddp: false
+  rank: 0
+  use_wandb: false
+  profile: false
+  val_metrics: !!set
+    estoi: null
+    snr: null
+    pesq: null
+  val_period: 10
+  use_amp: true
+  compile: false
+  save_on_epochs: []
+model:
+  filters: 512
+  filter_length: 32
+  bottleneck_channels: 128
+  hidden_channels: 512
+  skip_channels: 128
+  kernel_size: 3
+  layers: 8
+  repeats: 3
+  output_sources: 1
+  causal: false
+  criterion: snr
+  optimizer: Adam
+  learning_rate: 0.001
+  grad_clip: 5.0

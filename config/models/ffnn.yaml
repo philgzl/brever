@@ -1,0 +1,57 @@
+arch: ffnn
+seed: 0
+train_path: none
+val_path: none
+dataset:
+  segment_length: 0.0
+  overlap_length: 0.0
+  fs: 16000
+  sources:
+  - mixture
+  - foreground
+  segment_strategy: pass
+  max_segment_length: 0.0
+  tar: true
+trainer:
+  workers: 0
+  epochs: 100
+  device: cuda
+  batch_sampler: bucket
+  batch_size: 128
+  num_buckets: 10
+  dynamic_batch_size: true
+  fs: 16000
+  ema: false
+  ema_decay: 0.999
+  ignore_checkpoint: false
+  preload: true
+  ddp: false
+  rank: 0
+  use_wandb: false
+  profile: false
+  val_metrics: !!set
+    estoi: null
+    snr: null
+    pesq: null
+  val_period: 10
+  use_amp: false
+  compile: false
+  save_on_epochs: []
+model:
+  fs: 16000
+  features: !!set
+    logfbe: null
+  stacks: 5
+  decimation: 1
+  stft_frame_length: 512
+  stft_hop_length: 256
+  stft_window: hann
+  mel_filters: 64
+  hidden_layers:
+  - 1024
+  - 1024
+  dropout: 0.2
+  normalization: static
+  criterion: mse
+  optimizer: Adam
+  learning_rate: 0.0001

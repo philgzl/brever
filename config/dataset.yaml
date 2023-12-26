@@ -1,0 +1,62 @@
+duration: 36000
+sources:
+- mixture
+- foreground
+rmm:
+  fs: 16000
+  seed: 0
+  padding: 0.0
+  uniform_tmr: false
+  reflection_boundary: 0.05
+  speakers: !!set
+    timit_.*: null
+  noises: !!set
+    dcase_.*: null
+  rooms: !!set
+    surrey_.*: null
+  target_snr_dist_name: uniform
+  target_snr_dist_args: !!python/tuple
+  - -5.0
+  - 10.0
+  target_angle: !!python/tuple
+  - -90.0
+  - 90.0
+  noise_num: !!python/tuple
+  - 1
+  - 3
+  noise_angle: !!python/tuple
+  - -90.0
+  - 90.0
+  noise_ndr_dist_name: uniform
+  noise_ndr_dist_args: !!python/tuple
+  - 0.0
+  - 30.0
+  diffuse: false
+  diffuse_color: white
+  diffuse_ltas_eq: false
+  decay: false
+  decay_color: white
+  decay_rt60_dist_name: uniform
+  decay_rt60_dist_args: !!python/tuple
+  - 0.1
+  - 5.0
+  decay_drr_dist_name: uniform
+  decay_drr_dist_args: !!python/tuple
+  - 5.0
+  - 35.0
+  decay_delay_dist_name: uniform
+  decay_delay_dist_args: !!python/tuple
+  - 0.075
+  - 0.1
+  rms_jitter_dist_name: uniform
+  rms_jitter_dist_args: !!python/tuple
+  - 0.0
+  - 0.0
+  speech_files: !!python/tuple
+  - 0.0
+  - 1.0
+  noise_files: !!python/tuple
+  - 0.0
+  - 1.0
+  room_files: all
+  weight_by_avg_length: false

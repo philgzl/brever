@@ -1,0 +1,13 @@
+__pycache__/
+/venv
+/data
+/models
+/brever.egg-info/
+/lsf/logs/
+/lsf/job_script.sh
+/slurm/logs/
+/slurm/job_script.sh
+/tests/test_dataset/
+/.coverage
+/.env
+/sif

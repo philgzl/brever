@@ -1,0 +1,23 @@
+-e .
+batch-pystoi==0.0.1
+coverage==7.3.2
+flake8==6.1.0
+h5py==3.10.0
+isort==5.12.0
+matplotlib==3.8.2
+numpy==1.26.2
+pesq==0.0.4
+pre-commit==3.5.0
+pystoi==0.3.3
+pytest==7.4.3
+python-dotenv==1.0.0
+python-sofa==0.2.0
+PyYAML==6.0.1
+scipy==1.11.4
+soundfile==0.12.1
+torch==2.1.1
+torch-ema==0.3
+torchaudio==2.1.1
+torchvision==0.16.1
+tqdm==4.66.1
+wandb==0.16.1
