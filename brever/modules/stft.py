@@ -28,9 +28,11 @@ class STFT:
     here due to their efficiency. As a consequence one should always use
     `center=True` to prevent complications until these issues are fixed.
     """
+
     def __init__(self, frame_length=512, hop_length=256, window='hann',
                  center=True, pad_mode='constant', normalized=True,
-                 onesided=True, compression_factor=1, scale_factor=1):
+                 onesided=True, compression_factor=1, scale_factor=1,
+                 n_fft=None):
         self.frame_length = frame_length
         self.hop_length = hop_length
         self.center = center
@@ -39,6 +41,7 @@ class STFT:
         self.onesided = onesided
         self.compression_factor = compression_factor
         self.scale_factor = scale_factor
+        self.n_fft = frame_length if n_fft is None else n_fft
 
         if isinstance(window, str):
             window = functools.partial(scipy.signal.get_window, window)
@@ -60,7 +63,7 @@ class STFT:
         x = x.view(-1, input_shape[-1])
         x = torch.stft(
             input=x,
-            n_fft=self.frame_length,
+            n_fft=self.n_fft,
             hop_length=self.hop_length,
             win_length=self.frame_length,
             window=window,
@@ -120,7 +123,7 @@ class STFT:
         x = x.reshape(-1, *input_shape[-2:])
         x = torch.istft(
             input=x,
-            n_fft=self.frame_length,
+            n_fft=self.n_fft,
             hop_length=self.hop_length,
             win_length=self.frame_length,
             window=window,

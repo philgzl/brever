@@ -1,0 +1,83 @@
+arch: metricganokd
+seed: 0
+train_path: none
+val_path: none
+dataset:
+  segment_length: 0.0
+  overlap_length: 0.0
+  fs: 16000
+  sources:
+  - mixture
+  - foreground
+  segment_strategy: pass
+  max_segment_length: 0.0
+  tar: true
+trainer:
+  workers: 4
+  epochs: 100
+  device: cuda
+  batch_sampler: bucket
+  batch_size: 128
+  num_buckets: 10
+  dynamic_batch_size: true
+  fs: 16000
+  ema: false
+  ema_decay: 0.999
+  ignore_checkpoint: false
+  preload: false
+  ddp: false
+  rank: 0
+  use_wandb: false
+  profile: false
+  val_metrics: !!set
+    estoi: null
+    pesq: null
+    snr: null
+  val_period: 10
+  use_amp: false
+  compile: false
+  save_on_epochs: []
+model:
+  stft_frame_length: 512
+  stft_hop_length: 256
+  stft_n_fft: 512
+  stft_normalized: false
+  stft_window: hamming
+  generator_lstm_hidden_size: 200
+  generator_lstm_num_layers: 2
+  generator_lstm_dropout: 0.1
+  generator_lstm_bidirectional: true
+  generator_fc_channels:
+  - 300
+  generator_optimizer: Adam
+  generator_learning_rate: 0.0001
+  discriminator_conv_channels:
+  - 16
+  - 32
+  - 64
+  - 128
+  discriminator_fc_channels:
+  - 50
+  - 10
+  discriminator_batchnorm: true
+  discriminator_batchnorm_momentum: 0.01
+  discriminator_sigmoid_output: false
+  discriminator_optimizer: Adam
+  discriminator_learning_rate: 0.0001
+  discriminator_train_clean: false
+  augment: true
+  augment_snr_min: 15.0
+  augment_snr_max: 55.0
+  target_metrics:
+  - pesq
+  inference_metric: pesq
+  xavier_init: true
+  precompute_stft: true
+  precompute_metric: true
+  mag_eps: 1.0e-14
+  min_mask: 0.05
+  adversarial_loss: MSELoss
+  kd_loss: MSELoss
+  kd_weight: 10.0
+  grad_clip: 5.0
+  fs: 16000

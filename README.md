@@ -6,11 +6,27 @@ Speech enhancement in noisy and reverberant environments using deep neural netwo
   * A feed-forward neural network (FFNN)-based system
   * Conv-TasNet ([Y. Luo and N. Mesgarani](https://doi.org/10.1109/TASLP.2019.2915167))
   * DCCRN ([Y. Hu et al.](https://doi.org/10.21437/Interspeech.2020-2537))
-  * SGMSE+ ([J. Richter et al.](https://doi.org/10.1109/TASLP.2023.3285241))
+  * SGMSE+ ([J. Richter et al.](https://doi.org/10.1109/TASLP.2023.3285241)), SGMSE+M ([J.-M. Lemercier et al.](https://doi.org/10.1109/ICASSP49357.2023.10095258))
   * MANNER ([H. J. Park et al.](https://doi.org/10.1109/ICASSP43922.2022.9747120))
+  * MetricGAN+ ([S. Fu et al.](https://doi.org/10.21437/Interspeech.2021-599)), MetricGAN-OKD ([W. Shin et al.](https://proceedings.mlr.press/v202/shin23b.html)) [experimental; does not seem to work]
 * Evaluate models in terms of different metrics: PESQ, STOI, ESTOI, SNR, SI-SNR.
 
 "brever" reads "reverb" backwards.
+
+# Table of Contents
+- [Installation](#installation)
+- [External databases](#external-databases)
+- [How to use](#how-to-use)
+  * [Creating datasets](#creating-datasets)
+    + [Using custom datasets](#using-custom-datasets)
+    + [Using VoiceBank+DEMAND](#using-voicebank-demand)
+  * [Training models](#training-models)
+  * [Testing models](#testing-models)
+- [Contributing](#contributing)
+  * [Implementing new models](#implementing-new-models)
+  * [TODO](#todo)
+- [Docker](#docker)
+- [Related publications](#related-publications)
 
 # Installation
 
@@ -35,30 +51,32 @@ pip install -r requirements.txt
 
 # External databases
 
-External databases of clean speech utterances, noise recordings and binaural room impulse responses (BRIRs) are required to generate datasets of noisy and reverberant mixtures. The following databases are supported:
+External databases of clean speech utterances, noise recordings and binaural room impulse responses (BRIRs) are required to generate datasets of noisy and reverberant mixtures. The following databases are used:
 
 - Speech databases:
-  - [TIMIT](https://doi.org/10.35111/17gk-bn40)
-  - [LibriSpeech](http://www.openslr.org/12)
-  - [WSJ](https://doi.org/10.35111/ewkm-cg47)
-  - [VCTK](https://doi.org/10.7488/ds/2645)
-  - [Clarity](https://doi.org/10.17866/rd.salford.16918180.v3)
-- BRIR databases:
-  - [Surrey](https://doi.org/10.1109/TASL.2010.2051354)
-  - [ASH](https://github.com/ShanonPearce/ASH-IR-Dataset)
-  - [BRAS](https://doi.org/10.1016/j.apacoust.2020.107867)
-  - [CATT](http://iosr.surrey.ac.uk/software/index.php#CATT_RIRs)
-  - [AVIL](https://doi.org/10.17743/jaes.2020.0026)
+  - [TIMIT](https://doi.org/10.35111/17gk-bn40) (not open)
+  - [LibriSpeech](http://www.openslr.org/12) (open)
+  - [WSJ0](https://doi.org/10.35111/ewkm-cg47) (not open)
+  - [VCTK](https://doi.org/10.7488/ds/2645) (open)
+  - [Clarity](https://doi.org/10.17866/rd.salford.16918180.v3) (open)
 - Noise databases:
-  - [TAU](https://doi.org/10.5281/zenodo.2589280)
-  - [NOISEX](https://doi.org/10.1016/0167-6393(93)90095-3)
-  - [ICRA](https://pubmed.ncbi.nlm.nih.gov/11465297/)
-  - [DEMAND](https://doi.org/10.5281/zenodo.1227121)
-  - [ARTE](https://doi.org/10.5281/zenodo.3386569)
+  - [TAU](https://doi.org/10.5281/zenodo.2589280) (open, referred to as `dcase` in the code)
+  - [NOISEX](https://doi.org/10.1016/0167-6393(93)90095-3) (not open)
+  - [ICRA](https://icra-audiology.org/Repository/icra-noise) (not open)
+  - [DEMAND](https://doi.org/10.5281/zenodo.1227121) (open)
+  - [ARTE](https://doi.org/10.5281/zenodo.3386569) (open)
+- BRIR databases:
+  - [Surrey](https://github.com/IoSR-Surrey/RealRoomBRIRs) (open)
+  - [ASH](https://github.com/ShanonPearce/ASH-IR-Dataset) (open)
+  - [BRAS](https://doi.org/10.14279/depositonce-6726.3) (open)
+  - [CATT](http://iosr.surrey.ac.uk/software/index.php#CATT_RIRs) (open)
+  - [AVIL](https://doi.org/10.17743/jaes.2020.0026) (not open)
 
 The path to each database in the file system is specified in `config/paths.yaml`.
 
-For WSJ the files should be reorganized by speaker using [this script](https://github.com/philgzl/wsj0-convert).
+The open databases can be downloaded using the `download_databases.sh` script (tested on Linux only). The script also resamples the VCTK, Clarity and TAU files from 48 kHz to 16 kHz and converts them to mono FLAC files using `ffmpeg`. Once the script is finished, the integrity of the files can be checked using `pytest tests/test_loader.py` (the tests for the non-open databases are skipped).
+
+The WSJ0 files should be reorganized by speaker using [this script](https://github.com/philgzl/wsj0-convert).
 
 # How to use
 
@@ -161,15 +179,76 @@ options:
 
 Example:
 ```
-$ python scripts/init_dataset.py train --duration 100
-Initialized data/datasets/train/5818d1fb/config.yaml
-$ python scripts/create_dataset.py data/datasets/train/5818d1fb/
+$ python scripts/init_dataset.py train --duration 3600 --speakers libri_.* --noises demand --rooms surrey_.*
+Initialized data/datasets/train/<dataset_id>/config.yaml
+$ python scripts/create_dataset.py data/datasets/train/<dataset_id>/
 ```
 
 The following files are then created next to the `config.yaml` file:
 - `audio.tar`: an archive containing noisy and clean speech files in FLAC format
 - `log.log`: a log file
 - `mixture_info.json`: metadata about each mixture
+
+### Using custom datasets
+
+You can use your own datasets of noisy speech mixtures, but the files should be organized as follows:
+- Each of your training, validation and test directories should contain a sub-directory called `audio` containing all the audio files.
+- The audio files should be named `f'{i:05d}_mixture.flac'` for the noisy speech files and `f'{i:05d}_foreground.flac'` for the clean speech files where `i` is the acoustic scene index starting from `0`.
+- Finally, either
+  * Bundle each `audio` sub-directory into a tar archive named `audio.tar` using e.g. `tar -cvf audio.tar audio/`
+  * Or make sure to pass `--tar 0` to `scripts/init_model.py` or `scripts/train_model.py` so the training script does not look for a tar archive.
+
+Example:
+```
+$ tree <my_custom_train_dataset>
+<my_custom_train_dataset>
+└── audio
+    ├── 00000_foreground.flac
+    ├── 00000_mixture.flac
+    ├── 00001_foreground.flac
+    ├── 00001_mixture.flac
+    ├── 00002_foreground.flac
+    ├── 00002_mixture.flac
+    ...
+$ tree <my_custom_val_dataset>
+<my_custom_val_dataset>
+└── audio
+    ├── 00000_foreground.flac
+    ├── 00000_mixture.flac
+    ├── 00001_foreground.flac
+    ├── 00001_mixture.flac
+    ├── 00002_foreground.flac
+    ├── 00002_mixture.flac
+    ...
+```
+
+Or:
+```
+$ tree <my_custom_train_dataset>
+<my_custom_train_dataset>
+└── audio.tar
+    ├── audio/00000_foreground.flac
+    ├── audio/00000_mixture.flac
+    ├── audio/00001_foreground.flac
+    ├── audio/00001_mixture.flac
+    ├── audio/00002_foreground.flac
+    ├── audio/00002_mixture.flac
+    ...
+$ tree <my_custom_val_dataset>
+<my_custom_val_dataset>
+└── audio.tar
+    ├── audio/00000_foreground.flac
+    ├── audio/00000_mixture.flac
+    ├── audio/00001_foreground.flac
+    ├── audio/00001_mixture.flac
+    ├── audio/00002_foreground.flac
+    ├── audio/00002_mixture.flac
+    ...
+```
+
+### Using VoiceBank+DEMAND
+
+You can also download the [VoiceBank+DEMAND](https://doi.org/10.7488/ds/2117) dataset using `scripts/vbdemand_to_brever.py` to quickly get started. The script resamples the files from 48 kHz to 16 kHz and converts them to FLAC. The `--val_speakers` option can be used to select the set of speakers used for validation (`p226` and `p287` by default). The training, validation and test sets are then placed in `data/datasets/train/vbdemand/`, `data/datasets/val/vbdemand/` and `data/datasets/test/vbdemand/` respectively.
 
 ## Training models
 
@@ -192,12 +271,13 @@ usage: init_model.py [-h] [--segment_length SEGMENT_LENGTH]
                      [--save_on_epochs SAVE_ON_EPOCHS] [--seed SEED]
                      --train_path TRAIN_PATH --val_path VAL_PATH [-f]
                      [-n NAME]
-                     {convtasnet,dccrn,ffnn,manner,sgmse} ...
+                     {convtasnet,dccrn,ffnn,manner,metricganokd,metricganp,sgmsep,sgmsepm,idmse,idmselarge}
+                     ...
 
 initialize a model
 
 positional arguments:
-  {convtasnet,dccrn,ffnn,manner,sgmse}
+  {convtasnet,dccrn,ffnn,manner,metricganokd,metricganp,sgmsep,sgmsepm,idmse,idmselarge}
                         model architecture
 
 options:
@@ -244,13 +324,23 @@ extra options:
 
 The model is then trained using the `scripts/train_model.py` script. Training options can be provided, which will override the parameters in the `config.yaml` file.
 ```
-usage: train_model.py [-h] [-f] [--wandb_run_id WANDB_RUN_ID] [--segment_length SEGMENT_LENGTH] [--overlap_length OVERLAP_LENGTH]
-                      [--sources SOURCES] [--segment_strategy SEGMENT_STRATEGY] [--max_segment_length MAX_SEGMENT_LENGTH] [--tar TAR]
-                      [--workers WORKERS] [--epochs EPOCHS] [--device DEVICE] [--batch_sampler BATCH_SAMPLER] [--batch_size BATCH_SIZE]
-                      [--num_buckets NUM_BUCKETS] [--dynamic_batch_size DYNAMIC_BATCH_SIZE] [--fs FS] [--ema EMA] [--ema_decay EMA_DECAY]
-                      [--ignore_checkpoint IGNORE_CHECKPOINT] [--preload PRELOAD] [--ddp DDP] [--rank RANK] [--use_wandb USE_WANDB]
-                      [--profile PROFILE] [--val_metrics VAL_METRICS] [--val_period VAL_PERIOD] [--use_amp USE_AMP] [--compile COMPILE]
-                      [--save_on_epochs SAVE_ON_EPOCHS] [--seed SEED] [--train_path TRAIN_PATH] [--val_path VAL_PATH]
+usage: train_model.py [-h] [-f] [--wandb_run_id WANDB_RUN_ID]
+                      [--segment_length SEGMENT_LENGTH]
+                      [--overlap_length OVERLAP_LENGTH] [--sources SOURCES]
+                      [--segment_strategy SEGMENT_STRATEGY]
+                      [--max_segment_length MAX_SEGMENT_LENGTH] [--tar TAR]
+                      [--workers WORKERS] [--epochs EPOCHS] [--device DEVICE]
+                      [--batch_sampler BATCH_SAMPLER]
+                      [--batch_size BATCH_SIZE] [--num_buckets NUM_BUCKETS]
+                      [--dynamic_batch_size DYNAMIC_BATCH_SIZE] [--fs FS]
+                      [--ema EMA] [--ema_decay EMA_DECAY]
+                      [--ignore_checkpoint IGNORE_CHECKPOINT]
+                      [--preload PRELOAD] [--ddp DDP] [--rank RANK]
+                      [--use_wandb USE_WANDB] [--profile PROFILE]
+                      [--val_metrics VAL_METRICS] [--val_period VAL_PERIOD]
+                      [--use_amp USE_AMP] [--compile COMPILE]
+                      [--save_on_epochs SAVE_ON_EPOCHS] [--seed SEED]
+                      [--train_path TRAIN_PATH] [--val_path VAL_PATH]
                       input
 
 train a model
@@ -299,9 +389,9 @@ the following options supersede the config file:
 
 Example:
 ```
-$ python scripts/init_model.py --train_path data/datasets/train/5818d1fb/ convtasnet
-Initialized models/ece4a25b/config.yaml
-$ python scripts/train_model.py models/ece4a25b/
+$ python scripts/init_model.py --train_path data/datasets/train/<dataset_id>/ convtasnet
+Initialized models/<model_id>/config.yaml
+$ python scripts/train_model.py models/<model_id>/
 ```
 
 The following files are then created next to the `config.yaml` file:
@@ -355,7 +445,27 @@ Example:
 python scripts/compare_models.py -i models/<model_id_1>/ models/<model_id_2>/ -t data/datasets/test/<dataset_id>/
 ```
 
-## Docker
+# Contributing
+
+## Implementing new models
+
+- Inherit from `brever.models.base.BreverBaseModel` and implement the `loss` and `_enhance` methods. Eventually override other methods if needed. See the docstrings in `brever/models/base.py` for details. See the implementation of the other models in `brever/models/` for examples.
+- Add the model to `brever.models.base.ModelRegistry` using the `register` decorator. This will expose the model to the command line.
+- Add default arguments and type hints to the `__init__` method of the model. This will allow for type checks and default values when initializing models from the command line.
+- Create a default config file for the model in `config/models/`. You can do this automatically using `scripts/write_default_config.py`. Eventually replace the default options for the trainer and the dataset with values that make sense for your model.
+- Implement tests in `tests/test_models.py` and `tests/test_training.py`.
+
+## TODO
+
+- Fix MetricGAN+
+- Add CSIG, CBAK, COVL metrics
+- Dynamically check for `audio/` or `audio.tar` in dataset directories
+- Support `.wav` files. Eventually support arbitrary file extensions.
+- Convert BRAS files from SOFA to WAV
+- Add noise type selection for DEMAND and ARTE
+- Make `download_databases.sh` cross-platform
+
+# Docker
 
 To build the image:
 ```
@@ -367,7 +477,7 @@ To start the container:
 docker run -it --rm -v ./models:/brever/models -v ./data:/brever/data brever:latest
 ```
 
-## Related publications
+# Related publications
 
 ```bibtex
 @article{gonzalez2023assessing,

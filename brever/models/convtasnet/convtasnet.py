@@ -51,12 +51,8 @@ class ConvTasNet(BreverBaseModel):
             causal=causal,
         )
 
-        optimizer_cls = getattr(torch.optim, optimizer)
-        self.optimizer = optimizer_cls(self.parameters(), lr=learning_rate)
+        self.optimizer = self.init_optimizer(optimizer, lr=learning_rate)
         self.grad_clip = grad_clip
-
-    def optimizers(self):
-        return self.optimizer
 
     def forward(self, x):
         length = x.shape[-1]
@@ -70,7 +66,7 @@ class ConvTasNet(BreverBaseModel):
         sources = sources.mean(axis=-2)  # make monaural
         return sources
 
-    def _step(self, batch, lengths, use_amp):
+    def loss(self, batch, lengths, use_amp):
         inputs, labels = batch[:, 0], batch[:, 1:]
         device = batch.device.type
         dtype = torch.bfloat16 if device == 'cpu' else torch.float16
@@ -79,19 +75,9 @@ class ConvTasNet(BreverBaseModel):
             loss = self.criterion(outputs, labels, lengths)
         return loss.mean()
 
-    def train_step(self, batch, lengths, use_amp, scaler):
-        self.optimizer.zero_grad()
-        loss = self._step(batch, lengths, use_amp)
-        scaler.scale(loss).backward()
-        if self.grad_clip != 0.0:
-            scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
-        scaler.step(self.optimizer)
-        scaler.update()
-        return loss
-
-    def val_step(self, batch, lengths, use_amp):
-        return self._step(batch, lengths, use_amp)
+    def update(self, loss, scaler):
+        # overwrite to clip gradients
+        super().update(loss, scaler, grad_clip=self.grad_clip)
 
     def _enhance(self, x, use_amp):
         x = x.mean(axis=-2)  # (batch_size, length)

@@ -1,13 +1,15 @@
-import json
 import math
 import os
+import subprocess
 import tarfile
 import tempfile
 
 import numpy as np
 import pytest
 import soundfile as sf
+import yaml
 
+from brever.config import get_config
 from brever.data import BreverDataset
 
 FS = 16000
@@ -19,7 +21,7 @@ SEGMENT_RATIO = MIXTURE_LENGTH/SEGMENT_LENGTH
 
 @pytest.fixture(scope="session")
 def dummy_dset(tmp_path_factory):
-    tempdir = tmp_path_factory.mktemp("data")
+    tempdir = tmp_path_factory.mktemp("data-dummy")
 
     mix_dirname = 'audio'
     archive_path = os.path.join(tempdir, f'{mix_dirname}.tar')
@@ -42,9 +44,41 @@ def dummy_dset(tmp_path_factory):
 
     archive.close()
 
-    mix_info_path = os.path.join(tempdir, 'mixture_info.json')
-    with open(mix_info_path, 'w') as f:
-        json.dump(list(range(N_MIXTURES)), f)
+    return tempdir
+
+
+@pytest.fixture(scope="session")
+def real_dset(tmp_path_factory):
+    tempdir = tmp_path_factory.mktemp("data-real")
+
+    config = get_config('config/dataset.yaml')
+    config.update_from_dict({
+        'duration': 30,
+        'rmm': {
+            'speakers': {'libri_.*', 'vctk_.*'},
+            'noises': {'dcase_.*', 'demand_.*'},
+            'rooms': {'surrey_.*', 'ash_.*'},
+        }
+    })
+
+    config_path = os.path.join(tempdir, 'config.yaml')
+    with open(config_path, 'w') as f:
+        yaml.dump(config.to_dict(), f)
+
+    subprocess.call([
+        'python',
+        'scripts/create_dataset.py',
+        tempdir,
+        '-f'
+    ])
+
+    subprocess.call([
+        'python',
+        'scripts/create_dataset.py',
+        tempdir,
+        '-f',
+        '--no_tar'
+    ])
 
     return tempdir
 
@@ -72,17 +106,20 @@ def test_segment_strat_on_dummy_dset(dummy_dset, segment_strat, dset_length):
 @pytest.mark.parametrize(
     'segment_strat, dset_length',
     [
-        ['drop', 25],
-        ['pass', 37],
-        ['pad', 37],
-        ['overlap', 37],
+        ['drop', 30],
+        ['pass', 34],
+        ['pad', 34],
+        ['overlap', 34],
     ]
 )
-def test_segment_strat_on_real_dset(dummy_dset, segment_strat, dset_length):
+@pytest.mark.parametrize('tar', [True, False])
+def test_segment_strat_on_real_dset(real_dset, segment_strat, dset_length,
+                                    tar):
     dataset = BreverDataset(
-        'tests/test_dataset',
+        real_dset,
         segment_strategy=segment_strat,
         segment_length=1.0,
+        tar=tar,
     )
     assert len(dataset) == dset_length
     for inputs in dataset:
@@ -111,16 +148,18 @@ def test_segment_len_on_dummy_dset(dummy_dset, segment_length, dset_length):
 @pytest.mark.parametrize(
     'segment_length, dset_length',
     [
-        [0.25, 129,],
-        [0.50, 68],
-        [1.00, 37],
-        [2.00, 22],
+        [0.25, 132],
+        [0.50, 67],
+        [1.00, 34],
+        [2.00, 19],
     ]
 )
-def test_segment_len_on_real_dset(segment_length, dset_length):
+@pytest.mark.parametrize('tar', [True, False])
+def test_segment_len_on_real_dset(real_dset, segment_length, dset_length, tar):
     dataset = BreverDataset(
-        'tests/test_dataset',
+        real_dset,
         segment_length=segment_length,
+        tar=tar,
     )
     assert len(dataset) == dset_length
     for inputs in dataset:

@@ -48,7 +48,7 @@ def get_func_spec(func):
     else:
         defaults = {}
 
-    output = []
+    output = {}
     for arg in spec.args:
         if arg in ['self', 'return']:
             continue
@@ -113,13 +113,17 @@ def get_func_spec(func):
         if type_ is bool:
             type_ = Bool
 
-        output.append(dict(
-            arg=arg,
+        output[arg] = dict(
             type=type_,
             action=action,
             default=default,
             required=arg not in defaults,
-        ))
+        )
+
+    if hasattr(func, '_is_submodel') and func._is_submodel:
+        parent_spec = get_func_spec(func.__bases__[0])
+        parent_spec.update(output)
+        output = parent_spec
 
     return output
 

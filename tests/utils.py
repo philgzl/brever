@@ -72,17 +72,11 @@ class DummyModel(BreverBaseModel):
         else:
             return segment_length
 
-    def _step(self, batch, lengths):
+    def loss(self, batch, lengths, use_amp):
         inputs, labels = batch[:, 0], batch[:, 1:]
         outputs = self(inputs)
         loss = self.criterion(outputs, labels, lengths)
         return loss.mean()
-
-    def train_step(self, batch, lengths, use_amp, scaler):
-        return self._step(batch, lengths)
-
-    def val_step(self, batch, lengths, use_amp):
-        return self._step(batch, lengths)
 
     def optimizers(self):
         return self.optimizer

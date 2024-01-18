@@ -12,12 +12,23 @@ ModelRegistry = Registry('model')
 class BreverBaseModel(nn.Module):
     """Base class for all models.
 
-    Subclasses must implement the `train_step`, `val_step`, `optimizers` and
-    `_enhance` methods. The `transform` and `pre_train` methods can be
-    overwritten if relevant.
+    Subclasses must implement the `loss` and `_enhance` methods. The
+    `transform`, `pre_train`, `train_step`, `val_step` and `update` methods
+    might need to be overwritten depending on the model.
 
     The `__init__` method accepts a convenience `criterion` argument to assign
     a callable `criterion` attribute, though it is not mandatory to use it.
+
+    All the models should also call the `init_optimizer` method at the end of
+    `__init__` to assign the `optimizer` attribute. The optimizer is returned
+    by the `optimizers` method. If multiple optimizers are used like in GANs,
+    the `init_optimizer` can be used multiple times (with the right `net`
+    argument) and the `optimizers` method should return a sequence of
+    optimizers.
+
+    TODO: the `optimizers` method is only needed for the trainer to save and
+    load `state_dicts` of the optimizers. This should be probably moved to the
+    `save_state_dict` and `load_state_dict` methods of the model.
 
     Parameters
     ----------
@@ -26,6 +37,9 @@ class BreverBaseModel(nn.Module):
         `str`, a callable is loaded from the criterion registry. If `None`, the
         `criterion` attribute is not set. Default is `None`.
     """
+
+    _is_submodel = False
+
     def __init__(
         self,
         criterion: Callable[..., torch.Tensor] | str | None = None,
@@ -36,6 +50,31 @@ class BreverBaseModel(nn.Module):
                 criterion = CriterionRegistry.get(criterion)
             self.criterion = criterion
         self._compiled_call_impl = None
+
+    def init_optimizer(self, optimizer, net=None, **kwargs):
+        """Initialize the optimizer.
+
+        Usually called at the end of the `__init__` method, once all the
+        network parameters are defined.
+
+        Parameters
+        ----------
+        optimizer : str or torch.optim.Optimizer
+            Optimizer to use. If `str`, a callable is loaded from the torch
+            optim module.
+        net : torch.nn.Module, optional
+            Network to optimize. Default is `self`.
+        **kwargs
+            Additional keyword arguments passed to the optimizer constructor.
+
+        Returns
+        -------
+        optimizer : torch.optim.Optimizer
+        """
+        if isinstance(optimizer, str):
+            optimizer = getattr(torch.optim, optimizer)
+        net = self if net is None else net
+        return optimizer(net.parameters(), **kwargs)
 
     def optimizers(self):
         """Optimizer getter.
@@ -53,7 +92,7 @@ class BreverBaseModel(nn.Module):
             Initialized optimizers. Can be a single optimizer or multiple
             optimizers.
         """
-        raise NotImplementedError
+        return self.optimizer
 
     def transform(self, sources):
         """Model input pre-processing.
@@ -165,7 +204,10 @@ class BreverBaseModel(nn.Module):
             Loss to backpropagate. Can be a dict if multiple losses are
             calculated like with GANs.
         """
-        raise NotImplementedError
+        self.optimizer.zero_grad()
+        loss = self.loss(batch, lengths, use_amp)
+        self.update(loss, scaler)
+        return loss
 
     def val_step(self, batch, lengths, use_amp):
         """Validation step.
@@ -195,7 +237,68 @@ class BreverBaseModel(nn.Module):
             Loss to log. Can be a dict if multiple losses are calculated like
             with GANs.
         """
+        return self.loss(batch, lengths, use_amp)
+
+    def loss(self, batch, lengths, use_amp):
+        """Loss calculation.
+
+        Calculates the loss given batched observations from the dataloader.
+        Called in the training and validation loops.
+
+        Parameters
+        ----------
+        batch : torch.Tensor or list of torch.Tensor
+            Batched model inputs from the dataloader. `batch` is a tensor if
+            the dataset's `__getitem__` returns a single output, or a list of
+            tensors if it returns multiple outputs.
+        lengths : torch.Tensor
+            Original model input lengths along the last dimension. Can be
+            important for post-processing, e.g. to ensure sample-wise losses
+            are not aggregated over the zero-padded regions. Shape
+            `(batch_size,)` if the dataset's `__getitem__` returns a single
+            output, else shape `(batch_size, n_model_inputs)`.
+        use_amp : bool
+            Whether to use automatic mixed precision.
+
+        Returns
+        -------
+        loss : torch.Tensor
+            Loss to backpropagate.
+        """
         raise NotImplementedError
+
+    def update(self, loss, scaler, net=None, optimizer=None, grad_clip=0.0,
+               retain_graph=None):
+        """Network weight update.
+
+        Backpropagates the loss and updates the network weights. Usually
+        called in `train_step`, after the gradients were zeroed and the loss
+        was calculated.
+
+        Parameters
+        ----------
+        loss : torch.Tensor
+            Loss to backpropagate.
+        scaler : torch.cuda.amp.GradScaler
+            Gradient scaler for automatic mixed precision.
+        net : torch.nn.Module, optional
+            Network to update. Default is `self`.
+        optimizer : torch.optim.Optimizer, optional
+            Optimizer to use. Default is `self.optimizer`.
+        grad_clip : float, optional
+            Gradient clipping value. Default is `0.0` (no clipping).
+        retain_graph : bool, optional
+            Whether to retain the computational graph. Passed to the `backward`
+            method. Default is `None`.
+        """
+        net = self if net is None else net
+        optimizer = self.optimizer if optimizer is None else optimizer
+        scaler.scale(loss).backward(retain_graph=retain_graph)
+        if grad_clip != 0.0:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(net.parameters(), grad_clip)
+        scaler.step(optimizer)
+        scaler.update()
 
     def pre_train(self, dataset, dataloader, epochs):
         """Pre-training instructions.

@@ -21,7 +21,7 @@ def get_model_default_config(model_key):
     with open(path) as f:
         file_config = yaml.load(f, Loader=yaml.Loader)
     spec = get_func_spec(ModelRegistry.get(model_key))
-    spec_config = {x['arg']: x['default'] for x in spec}
+    spec_config = {arg: x['default'] for arg, x in spec.items()}
     if file_config['model'] != spec_config:
         warnings.warn(f'Default config file {path} does not match default '
                       'arguments from model __init__ signature')

@@ -14,6 +14,7 @@ class Resample(nn.Module):
     from the implementation by Tero Karras in NVlabs/edm and is much simpler.
     Results are the same during unit testing.
     """
+
     def __init__(self, fir_kernel, buffer_padding=False):
         super().__init__()
         kernel = torch.as_tensor(fir_kernel, dtype=torch.float32)

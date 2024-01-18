@@ -1,7 +1,7 @@
-import json
 import logging
 import os
 import random
+import re
 import sys
 import tarfile
 from typing import Callable
@@ -119,11 +119,10 @@ class BreverDataset(torch.utils.data.Dataset):
         )/self.fs
 
     def get_file_lengths(self):
-        json_path = os.path.join(self.path, 'mixture_info.json')
-        with open(json_path) as f:
-            json_data = json.load(f)
+        n_files = self.count_files()
         file_lengths = []
-        for file_idx in range(len(json_data)):
+        logging.info('Reading file lengths...')
+        for file_idx in tqdm(range(n_files)):
             source_paths = self.build_paths(file_idx)
             first_file = self.get_file(source_paths[0])
             first_metadata = torchaudio.info(first_file)
@@ -140,6 +139,19 @@ class BreverDataset(torch.utils.data.Dataset):
             file_lengths.append(first_length)
         self._duration = sum(file_lengths)/self.fs
         return file_lengths
+
+    def count_files(self):
+        if self.archive is None:
+            files = [
+                f'audio/{file}'
+                for file in os.listdir(os.path.join(self.path, 'audio'))
+            ]
+        else:
+            files = self.archive.members
+        return max(
+            int(re.match(r'audio/(\d+)_.+\.flac', file).group(1))
+            for file in files
+        ) + 1
 
     def _add_segment_info(self, file_idx, file_length):
         if self.segment_strategy == 'random':
@@ -426,8 +438,9 @@ class BreverDataLoader(torch.utils.data.DataLoader):
                 [4, 1]])
         """
         # convert to tuple if batch items are tensors
+        inputs_are_tensors = isinstance(unbatched[0], torch.Tensor)
         unbatched = [
-            (x,) if isinstance(x, torch.Tensor) else x for x in unbatched
+            (x,) if inputs_are_tensors else x for x in unbatched
         ]
         lengths = torch.tensor(
             [[x.shape[-1] for x in inputs] for inputs in unbatched],
@@ -440,7 +453,7 @@ class BreverDataLoader(torch.utils.data.DataLoader):
             for inputs, max_length in zip(zip(*unbatched), lengths.amax(dim=0))
         ]
         # convert back to tensor if batch items were tensors
-        if len(batched) == 1:
+        if inputs_are_tensors:
             batched, = batched
             lengths = lengths.squeeze(-1)
         return batched, lengths

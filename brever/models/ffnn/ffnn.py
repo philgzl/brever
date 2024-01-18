@@ -67,11 +67,7 @@ class FFNN(BreverBaseModel):
             raise ValueError('unrecognized normalization type, got '
                              f'{normalization}')
 
-        optimizer_cls = getattr(torch.optim, optimizer)
-        self.optimizer = optimizer_cls(self.parameters(), lr=learning_rate)
-
-    def optimizers(self):
-        return self.optimizer
+        self.optimizer = self.init_optimizer(optimizer, lr=learning_rate)
 
     def forward(self, x):
         x = self.normalization(x)
@@ -94,22 +90,12 @@ class FFNN(BreverBaseModel):
         labels = self.decimate(labels)
         return torch.cat([x, labels])
 
-    def _step(self, batch, lengths):
+    def loss(self, batch, lengths, use_amp):
         inputs = batch[:, :self.ffnn.input_size]
         labels = batch[:, self.ffnn.input_size:]
         outputs = self(inputs)
         loss = self.criterion(outputs, labels, lengths)
         return loss.mean()
-
-    def train_step(self, batch, lengths, use_amp, scaler):
-        self.optimizer.zero_grad()
-        loss = self._step(batch, lengths)
-        loss.backward()
-        self.optimizer.step()
-        return loss
-
-    def val_step(self, batch, lengths, use_amp):
-        return self._step(batch, lengths)
 
     def _enhance(self, x, use_amp):
         length = x.shape[-1]

@@ -160,6 +160,10 @@ class AudioFileLoader:
                     filepath = os.path.join(speaker_dir, file)
                     speakers[speaker].append(filepath)
         elif prefix == 'vctk':
+            if '16kHz_mic1' in os.listdir(dirpath):
+                dirpath = os.path.join(dirpath, '16kHz_mic1')
+            elif 'wav48_silence_trimmed' in os.listdir(dirpath):
+                dirpath = os.path.join(dirpath, 'wav48_silence_trimmed')
             for speaker in os.listdir(dirpath):
                 speaker_dir = os.path.join(dirpath, speaker)
                 speakers[speaker] = []

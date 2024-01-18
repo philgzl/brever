@@ -1,1 +1,1 @@
-from .sgmse import SGMSE, SDERegistry  # noqa: F401
+from .sgmse import IDMSE, IDMSELarge, SGMSEp, SGMSEpM  # noqa: F401

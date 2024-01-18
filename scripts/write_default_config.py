@@ -18,10 +18,9 @@ class NoAliasDumper(yaml.Dumper):
 
 def build_default_config(keys, classes):
 
-    def _handle_required(x):
+    def _handle_required(_arg, x):
         x = x.copy()
         _parser = argparse.ArgumentParser()
-        _arg = x.pop('arg')
         x.pop('required')
         _parser.add_argument(_arg, **x)
         _args = _parser.parse_args(['none'])
@@ -29,8 +28,8 @@ def build_default_config(keys, classes):
 
     def _subconfig(cls_):
         return {
-            x['arg']: _handle_required(x) if x['required'] else x['default']
-            for x in get_func_spec(cls_)
+            _arg: _handle_required(_arg, x) if x['required'] else x['default']
+            for _arg, x in get_func_spec(cls_).items()
         }
 
     return {key: _subconfig(cls_) for key, cls_ in zip(keys, classes)}

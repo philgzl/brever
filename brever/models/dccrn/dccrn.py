@@ -68,11 +68,7 @@ class DCCRN(BreverBaseModel):
             use_complex_batchnorm=use_complex_batchnorm,
         )
 
-        optimizer_cls = getattr(torch.optim, optimizer)
-        self.optimizer = optimizer_cls(self.parameters(), lr=learning_rate)
-
-    def optimizers(self):
-        return self.optimizer
+        self.optimizer = self.init_optimizer(optimizer, lr=learning_rate)
 
     def forward(self, x):
         length = x.shape[-1]
@@ -107,7 +103,7 @@ class DCCRN(BreverBaseModel):
         sources = sources.mean(axis=-2)  # make monaural
         return sources
 
-    def _step(self, batch, lengths, use_amp):
+    def loss(self, batch, lengths, use_amp):
         inputs, labels = batch[:, 0], batch[:, 1]
         device = batch.device.type
         dtype = torch.bfloat16 if device == 'cpu' else torch.float16
@@ -116,18 +112,9 @@ class DCCRN(BreverBaseModel):
             loss = self.criterion(outputs, labels, lengths)
         return loss.mean()
 
-    def train_step(self, batch, lengths, use_amp, scaler):
-        self.optimizer.zero_grad()
-        loss = self._step(batch, lengths, use_amp)
-        scaler.scale(loss).backward()
-        scaler.unscale_(self.optimizer)
-        torch.nn.utils.clip_grad_norm_(self.parameters(), 5.0)
-        scaler.step(self.optimizer)
-        scaler.update()
-        return loss
-
-    def val_step(self, batch, lengths, use_amp):
-        return self._step(batch, lengths, use_amp)
+    def update(self, loss, scaler):
+        # overwrite to clip gradients
+        super().update(loss, scaler, grad_clip=5.0)
 
     def _enhance(self, x, use_amp):
         x = x.mean(axis=-2)  # (batch_size, length)
@@ -336,6 +323,8 @@ class ComplexLSTM(nn.Module):
 
 class SingleLayerComplexLSTM(ComplexWrapper):
     """
+    A complex-valued LSTM with a single layer.
+
     Directly calling `ComplexWrapper` with `module_cls=nn.LSTM` leads to a
     wrong implementation of a multi-layer complex LSTM, since each layer needs
     to be wrapped. A single-layer complex LSTM is first defined here by
@@ -343,6 +332,7 @@ class SingleLayerComplexLSTM(ComplexWrapper):
 
     Also `nn.LSTM` has multiple outputs so we need to rewrite `forward`.
     """
+
     def __init__(self, *args, **kwargs):
         if len(args) > 2 or 'num_layers' in kwargs:
             raise ValueError(f'{self.__class__.__name__} does not support '

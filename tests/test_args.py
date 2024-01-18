@@ -11,8 +11,8 @@ from brever.training import BreverTrainer
 
 def _build_command(func, parser_cls, command=[]):
     spec = get_func_spec(func)
-    for x in spec:
-        arg = f'--{x["arg"]}='
+    for arg, x in spec.items():
+        arg = f'--{arg}='
         if isinstance(x['default'], (list, tuple, set)):
             arg += ','.join(str(y) for y in x['default'])
         else:

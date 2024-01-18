@@ -61,26 +61,20 @@ class TestResample():
         self._test_shape(downsample, 'down')
 
     def _test_resample(self, resample_func, which):
-        """
-        check that the implementation of FIR up/down-sampling from
-        huggingface/diffusers is the same as ours for even input shapes and
-        even kernel lengths
-        """
+        # check that the implementation of FIR up/down-sampling from
+        # huggingface/diffusers is the same as ours for even input shapes and
+        # even kernel lengths
         y = resample_func(self.x_even)
         z = self.resample_2d(self.x_even, which, self.kernel)
         assert torch.isclose(y, z).all()
 
     def _test_shape(self, resample_func, which):
-        """
-        check output shape when using odd shaped input
-        """
+        # check output shape when using odd shaped input
         y = resample_func(self.x_odd)
         assert y.shape == self.x_odd_output_shape[which]
 
     def resample_2d(self, x, which, kernel=(1, 3, 3, 1), factor=2, gain=1):
-        """
-        set up arguments for call to upfirdn2d
-        """
+        # set up arguments for call to upfirdn2d
         kernel = torch.tensor(kernel, dtype=torch.float32)
         if kernel.ndim == 1:
             kernel = torch.outer(kernel, kernel)
@@ -107,30 +101,28 @@ class TestResample():
         )
 
     def upfirdn2d(self, tensor, kernel, up=1, down=1, pad=(0, 0)):
-        """
-        This function and only this function was copied from:
-
-            https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/resnet.py
-
-        which is under the following license:
-
-        Copyright 2023 The HuggingFace Team. All rights reserved.
-
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-
-             http://www.apache.org/licenses/LICENSE-2.0
-
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-        implied. See the License for the specific language governing
-        permissions and limitations under the License.
-
-        The lines of code in this file outside of this function are not
-        affected by this license.
-        """
+        # This function and only this function was copied from:
+        #
+        #     https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/resnet.py
+        #
+        # which is under the following license:
+        #
+        # Copyright 2023 The HuggingFace Team. All rights reserved.
+        #
+        # Licensed under the Apache License, Version 2.0 (the "License");
+        # you may not use this file except in compliance with the License.
+        # You may obtain a copy of the License at
+        #
+        #      http://www.apache.org/licenses/LICENSE-2.0
+        #
+        # Unless required by applicable law or agreed to in writing, software
+        # distributed under the License is distributed on an "AS IS" BASIS,
+        # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+        # implied. See the License for the specific language governing
+        # permissions and limitations under the License.
+        #
+        # The lines of code in this file outside of this function are not
+        # affected by this license.
         up_x = up_y = up
         down_x = down_y = down
         pad_x0 = pad_y0 = pad[0]

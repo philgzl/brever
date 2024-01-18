@@ -36,9 +36,6 @@ class MANNER(BreverBaseModel):
             self.optimizer, **self._scheduler_kwargs,
         )
 
-    def optimizers(self):
-        return self.optimizer
-
     def transform(self, sources):
         assert sources.shape[0] == 2  # mixture, foreground
         sources = sources.mean(axis=-2)  # make monaural
@@ -52,7 +49,7 @@ class MANNER(BreverBaseModel):
             x = self.forward(x)  # (batch_size, 1, length)
         return x.squeeze(1)
 
-    def _step(self, batch, lengths, use_amp):
+    def loss(self, batch, lengths, use_amp):
         mix, clean = batch[:, [0]], batch[:, 1:]
         noise = mix - clean
         device = batch.device.type
@@ -81,17 +78,10 @@ class MANNER(BreverBaseModel):
 
         return loss.mean()
 
-    def train_step(self, batch, lengths, use_amp, scaler):
-        self.optimizer.zero_grad()
-        loss = self._step(batch, lengths, use_amp)
-        scaler.scale(loss).backward()
-        scaler.step(self.optimizer)
-        scaler.update()
+    def update(self, loss, scaler):
+        # overwrite to update scheduler
+        super().update(loss, scaler)
         self.scheduler.step()
-        return loss
-
-    def val_step(self, batch, lengths, use_amp):
-        return self._step(batch, lengths, use_amp)
 
     def select_loss(self):
         if self.args.loss == 'l1':

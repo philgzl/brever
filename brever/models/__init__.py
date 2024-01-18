@@ -5,7 +5,8 @@ from .convtasnet import ConvTasNet  # noqa: F401
 from .dccrn import DCCRN  # noqa: F401
 from .ffnn import FFNN  # noqa: F401
 from .manner import MANNER  # noqa: F401
-from .sgmse import SGMSE  # noqa: F401
+from .metricganokd import MetricGANOKD, MetricGANp  # noqa: F401
+from .sgmse import IDMSE, IDMSELarge, SGMSEp, SGMSEpM  # noqa: F401
 
 
 def count_params(model):

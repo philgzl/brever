@@ -16,8 +16,7 @@ class BaseArgParser(argparse.ArgumentParser):
 
     @classmethod
     def _add_args(cls, func, parser, add_defaults=False, required=True):
-        for item in get_func_spec(func):
-            arg = item.pop('arg')
+        for arg, item in get_func_spec(func).items():
             if not add_defaults:
                 item['default'] = None
             if not required:
@@ -36,11 +35,10 @@ class BaseArgParser(argparse.ArgumentParser):
     def build_argmap(cls, prefixes, classes):
         arg_map = {}
         for prefix, cls_ in zip(prefixes, classes):
-            for item in get_func_spec(cls_):
-                arg = item['arg']
+            for arg in get_func_spec(cls_).keys():
                 if arg not in arg_map:
                     arg_map[arg] = []
-                key_list = [item['arg']]
+                key_list = [arg]
                 if prefix:
                     key_list = [prefix] + key_list
                 arg_map[arg].append(key_list)

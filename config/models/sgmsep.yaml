@@ -1,4 +1,4 @@
-arch: sgmse
+arch: sgmsep
 seed: 0
 train_path: none
 val_path: none
@@ -30,9 +30,9 @@ trainer:
   use_wandb: false
   profile: false
   val_metrics: !!set
+    pesq: null
     estoi: null
     snr: null
-    pesq: null
   val_period: 10
   use_amp: true
   compile: false
@@ -54,9 +54,10 @@ model:
   sde_cosine_lambda_max: .inf
   sde_cosine_shift: 3.0
   sde_cosine_beta_clamp: 10.0
+  sde_bb_scaling: 0.1
   solver_name: pc
   solver_num_steps: 16
-  solver_edm_schurn: 0.0
+  solver_edm_schurn: .inf
   solver_edm_smin: 0.0
   solver_edm_smax: .inf
   solver_edm_snoise: 1.0
@@ -65,10 +66,13 @@ model:
   net_base_channels: 128
   net_channel_mult:
   - 1
+  - 1
   - 2
   - 2
   - 2
-  net_num_res_blocks: 1
+  - 2
+  - 2
+  net_num_res_blocks: 2
   net_noise_channels: 256
   net_emb_channels: 512
   net_fir_kernel:
@@ -77,7 +81,7 @@ model:
   - 3
   - 1
   net_attn_resolutions:
-  - 0
+  - 16
   net_attn_bottleneck: true
   preconditioning_cskip: richter
   preconditioning_cout: richter

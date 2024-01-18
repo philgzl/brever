@@ -2,7 +2,7 @@ import random
 
 import torch
 
-from brever.models import ModelRegistry
+from brever.models import ModelRegistry, count_params
 
 
 class _TestModel:
@@ -58,29 +58,40 @@ class _TestModel:
             )
             assert j >= nan_start-latency+1
 
+    def test_n_params(self):
+        if self.n_params is None:
+            return
+        net = self.init_model(None)
+        assert count_params(net) == self.n_params
+
 
 class TestFFNN(_TestModel):
     model_name = 'ffnn'
     forward_args = [torch.randn(1, 384, 100)]
-    latency = lambda self, net: net.stft.frame_length  # noqa E731
+    latency = lambda self, net: net.stft.frame_length  # noqa: E731
+    n_params = 1_509_440
 
 
 class TestConvTasNet(_TestModel):
     model_name = 'convtasnet'
     forward_args = [torch.randn(1, 16000)]
-    latency = lambda self, net: net.encoder.filter_length  # noqa E731
+    latency = lambda self, net: net.encoder.filter_length  # noqa: E731
     default_model_kwargs = {'output_sources': 1, 'causal': True}
     is_source_separation_network = True
+    # n_params = 5_066_929  # same as naplab/Conv-TasNet with output_sources=2 and if the last residual convolution is not removed  # noqa: E501
+    n_params = 4_935_217
 
 
 class TestDCCRN(_TestModel):
     model_name = 'dccrn'
     forward_args = [torch.randn(1, 16000)]
-    latency = lambda self, net: net.latency  # noqa E731
+    latency = lambda self, net: net.latency  # noqa: E731
+    # n_params = 3_671_917  # same as https://github.com/huyanxin/DeepComplexCRN/issues/4 with use_complex_batchnorm=False  # noqa: E501
+    n_params = 3_671_053  # with use_complex_batchnorm=True
 
 
 class TestSGMSE(_TestModel):
-    model_name = 'sgmse'
+    model_name = 'sgmsepm'
     forward_args = [
         torch.randn(4, 1, 256, 32, dtype=torch.cfloat),
         torch.randn(4, 1, 256, 32, dtype=torch.cfloat),
@@ -89,9 +100,19 @@ class TestSGMSE(_TestModel):
     ]
     latency = None  # TODO
     enhance_model_kwargs = {'solver_num_steps': 3}
+    n_params = 27_756_186  # same as NCSN++M in sp-uhh/sgmse/tree/icassp_2023
+
+
+class TestMetricGANOKD(_TestModel):
+    model_name = 'metricganokd'
+    forward_args = [torch.randn(4, 257, 4)]
+    latency = None  # TODO
+    # n_params = 1_914_524  # same as SpeechBrain with discriminator_conv_channels=[15, 15, 15, 15]  # noqa: E501
+    n_params = 2_172_329  # same as wooseok-shin/MetricGAN-OKD
 
 
 class TestMANNER(_TestModel):
     model_name = 'manner'
     forward_args = [torch.randn(1, 1, 16000)]
     latency = None  # TODO
+    n_params = 21_253_921

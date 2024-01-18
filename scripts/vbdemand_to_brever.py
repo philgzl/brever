@@ -1,21 +1,16 @@
 import argparse
-import json
+import io
 import os
 import tarfile
 import tempfile
-from io import BytesIO
-from zipfile import ZipFile
+import urllib.request
+import zipfile
 
 import soundfile as sf
 from tqdm import tqdm
 
 from brever.config import get_config
 from brever.io import resample
-
-VAL_SPEAKERS = [
-    'p226',
-    'p287',
-]
 
 
 def filter_func(x, train_val_test):
@@ -24,7 +19,7 @@ def filter_func(x, train_val_test):
         return False
     if train_val_test == 'test':
         return True
-    if any(os.path.basename(x).startswith(spk) for spk in VAL_SPEAKERS):
+    if any(os.path.basename(x).startswith(spk) for spk in args.val_speakers):
         return train_val_test == 'val'
     else:
         return train_val_test == 'train'
@@ -52,16 +47,16 @@ def main():
             arcnames = archive.getnames()
             wav_names = []
 
-            with ZipFile(args.vbdemand_path, 'r') as zip_file:
+            with zipfile.ZipFile(args.vbdemand_path, 'r') as zip_file:
                 for noisy_or_clean, mixture_or_foreground, first_iteration in [
                     ('noisy', 'mixture', True),
                     ('clean', 'foreground', False),
                 ]:
                     zip_name = f'{noisy_or_clean}_{suffix}_wav.zip'
                     print(f'reading {zip_name}...')
-                    zip_data = BytesIO(zip_file.read(zip_name))
+                    zip_data = io.BytesIO(zip_file.read(zip_name))
                     print('done.')
-                    with ZipFile(zip_data) as inner_zip_file:
+                    with zipfile.ZipFile(zip_data) as inner_zip_file:
                         names = list(filter(
                             lambda x: filter_func(x, train_val_test),
                             inner_zip_file.namelist()
@@ -79,7 +74,7 @@ def main():
                                 continue
 
                             x, fs = sf.read(
-                                BytesIO(inner_zip_file.read(wav_name))
+                                io.BytesIO(inner_zip_file.read(wav_name))
                             )
                             temp = tempfile.NamedTemporaryFile(
                                 prefix='brever_',
@@ -94,14 +89,40 @@ def main():
         finally:
             archive.close()
 
-        metadata_file = os.path.join(output_dir, 'mixture_info.json')
-        with open(metadata_file, 'w') as f:
-            json.dump(wav_names, f)
+
+class DownloadProgressBar(tqdm):
+    def update_to(self, b=1, bsize=1, tsize=None):
+        if tsize is not None:
+            self.total = tsize
+        self.update(b * bsize - self.n)
+
+
+def download_url(url, output_path):
+    with DownloadProgressBar(unit='B', unit_scale=True, miniters=1,
+                             desc=url.split('/')[-1]) as t:
+        urllib.request.urlretrieve(url, filename=output_path,
+                                   reporthook=t.update_to)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('vbdemand_path')
     parser.add_argument('-f', '--force', action='store_true')
+    parser.add_argument('--vbdemand_path')
+    parser.add_argument('--val_speakers', nargs='+', default=['p226', 'p287'])
     args = parser.parse_args()
-    main()
+
+    if args.vbdemand_path is None:
+        # Do not create temporary directory in the system temp dir as it may
+        # have limited space
+        with tempfile.TemporaryDirectory(dir='./') as tempdir:
+            output_path = os.path.join(tempdir, 'VBDEMAND.zip')
+            download_url(
+                'https://datashare.ed.ac.uk/download/DS_10283_2791.zip',
+                output_path
+            )
+            with zipfile.ZipFile(output_path, 'r') as zip_file:
+                zip_file.extractall(tempdir)
+            args.vbdemand_path = output_path
+            main()
+    else:
+        main()

@@ -19,11 +19,22 @@ def test_errors(audio_file_loader):
         audio_file_loader.get_angles('babble')
 
 
-def test_speakers(audio_file_loader):
-    speakers = audio_file_loader.get_speakers('timit')
-    assert len(speakers) == 630
-    speakers = audio_file_loader.get_speakers('libri')
-    assert len(speakers) == 251
+@pytest.mark.parametrize(
+    'prefix, speaker_count',
+    [
+        ['timit', 630],
+        ['libri', 251],
+        ['wsj0', 131],
+        ['clarity', 40],
+        ['vctk', 110],
+    ]
+)
+def test_speakers(audio_file_loader, prefix, speaker_count):
+    dirpath = audio_file_loader.get_path(prefix, raise_=False)
+    if not os.path.exists(dirpath):
+        pytest.skip()
+    speakers = audio_file_loader.get_speakers(prefix)
+    assert len(speakers) == speaker_count
 
 
 @pytest.mark.parametrize(
@@ -37,6 +48,10 @@ def test_speakers(audio_file_loader):
     ]
 )
 def test_target(audio_file_loader, speaker, file_count):
+    prefix = speaker.split('_')[0]
+    dirpath = audio_file_loader.get_path(prefix, raise_=False)
+    if not os.path.exists(dirpath):
+        pytest.skip()
     files = audio_file_loader.get_speech_files(speaker)
     assert len(files) == file_count
 
@@ -107,6 +122,9 @@ def test_target(audio_file_loader, speaker, file_count):
     ]
 )
 def test_noises(audio_file_loader, prefix, suffixes):
+    dirpath = audio_file_loader.get_path(prefix, raise_=False)
+    if not os.path.exists(dirpath):
+        pytest.skip()
     if suffixes:
         for suffix in suffixes:
             audio_file_loader.get_noise_files(f'{prefix}_{suffix}')

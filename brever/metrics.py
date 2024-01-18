@@ -18,9 +18,9 @@ MetricRegistry = Registry('metric')
 
 def _stoi(x, y, fs, extended, batched, lengths):
     if isinstance(x, torch.Tensor):
-        x = x.cpu().numpy()
+        x = x.detach().cpu().numpy()
     if isinstance(y, torch.Tensor):
-        y = y.cpu().numpy()
+        y = y.detach().cpu().numpy()
     if isinstance(lengths, torch.Tensor):
         lengths = lengths.cpu().numpy()
     if batched:
@@ -46,9 +46,9 @@ def _stoi(x, y, fs, extended, batched, lengths):
 
 def _pesq(x, y, fs, mode, normalized, batched, lengths):
     if isinstance(x, torch.Tensor):
-        x = x.cpu().numpy()
+        x = x.detach().cpu().numpy()
     if isinstance(y, torch.Tensor):
-        y = y.cpu().numpy()
+        y = y.detach().cpu().numpy()
     if isinstance(lengths, torch.Tensor):
         lengths = lengths.cpu().numpy()
     if batched:
@@ -69,7 +69,27 @@ def _pesq(x, y, fs, mode, normalized, batched, lengths):
                 for xi, yi, length in zip(x, y, lengths)
             ])
     if normalized:
-        output = (output + 0.5) / 5
+        # see https://github.com/ludlows/PESQ/issues/13
+        if mode == 'nb':
+            # min = 1.016843313292765
+            min = 1.0
+            max = 4.548638319075995
+        elif mode == 'wb':
+            # min = 1.042694226789194
+            min = 1.0
+            max = 4.643888749336258
+        else:
+            raise ValueError(f"mode must be 'nb' or 'wb', got '{mode}'")
+        output = (output - min) / (max - min)
+        if (
+            isinstance(output, np.ndarray)
+            and (any(output < 0) or any(output > 1))
+        ) or (
+            isinstance(output, float)
+            and (output < 0 or output > 1)
+        ):
+            raise RuntimeError('normalized PESQ score is out of bounds: '
+                               f'{output}')
     return output
 
 
