@@ -557,8 +557,10 @@ class TrainingTimer:
 
     def final_log(self):
         total_time = self.total_elapsed_time
-        logging.info(f'Time spent: {int(total_time/3600)} h '
-                     f'{int(total_time%3600/60)} m {int(total_time%60)} s')
+        logging.info(
+            f'Time spent: {int(total_time/3600)} h '
+            f'{int(total_time % 3600 / 60)} m {int(total_time % 60)} s'
+        )
 
     @property
     def total_elapsed_time(self):

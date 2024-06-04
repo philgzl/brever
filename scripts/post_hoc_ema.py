@@ -4,9 +4,9 @@ import torch
 
 from brever.modules import EMAKarras
 
-
 if __name__ == '__main__':
     import tempfile
+
     import matplotlib.pyplot as plt
 
     n_updates = 100

@@ -13,8 +13,8 @@ from .resampling import (  # isort: skip
     Upsample,
     Downsample,
 )
-from .features import FeatureExtractor
 from .ema import EMA, EMAKarras
+from .features import FeatureExtractor
 
 __all__ = [
     'ConvSTFT',
