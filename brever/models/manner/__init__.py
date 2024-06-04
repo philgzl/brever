@@ -10,6 +10,15 @@ from .utils import args_dict
 
 @ModelRegistry.register('manner')
 class MANNER(BreverBaseModel):
+    """Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] H. J. Park, B. H. Kang, W. Shin, J. S. Kim and S. W. Han, "MANNER:
+           Multi-View Attention Network for Noise Erasure", in Proc. IEEE
+           ICASSP, 2022.
+    """
+
     def __init__(self):
         super().__init__()
         self.args = args_dict(get_config())
@@ -107,3 +116,4 @@ class MANNER(BreverBaseModel):
         self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
             self.optimizer, **self._scheduler_kwargs,
         )
+        self.scheduler.load_state_dict(state_dict['scheduler']['state_dict'])

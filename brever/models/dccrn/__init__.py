@@ -1,1 +1,3 @@
-from .dccrn import DCCRN  # noqa: F401
+from .dccrn import DCCRN
+
+__all__ = ['DCCRN']

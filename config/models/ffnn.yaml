@@ -12,6 +12,8 @@ dataset:
   segment_strategy: pass
   max_segment_length: 0.0
   tar: true
+  dynamic_mixing: false
+  dynamic_mixtures_per_epoch: 1000
 trainer:
   workers: 0
   epochs: 100

@@ -1,1 +1,3 @@
-from .sgmse import IDMSE, IDMSELarge, SGMSEp, SGMSEpM  # noqa: F401
+from .sgmse import IDMSE, SGMSEp, SGMSEpM
+
+__all__ = ['IDMSE', 'SGMSEp', 'SGMSEpM']

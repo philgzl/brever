@@ -6,6 +6,7 @@ import yaml
 
 from .args import DatasetArgParser, ModelArgParser
 from .inspect import Path, get_func_spec
+from .mixture import RandomMixtureMaker
 from .models import ModelRegistry
 
 
@@ -25,6 +26,19 @@ def get_model_default_config(model_key):
     if file_config['model'] != spec_config:
         warnings.warn(f'Default config file {path} does not match default '
                       'arguments from model __init__ signature')
+    config = BreverConfig(file_config)
+    return config
+
+
+def get_dataset_default_config():
+    path = 'config/dataset.yaml'
+    with open(path) as f:
+        file_config = yaml.load(f, Loader=yaml.Loader)
+    spec = get_func_spec(RandomMixtureMaker)
+    spec_config = {arg: x['default'] for arg, x in spec.items()}
+    if file_config['rmm'] != spec_config:
+        warnings.warn(f'Default config file {path} does not match default '
+                      'arguments from dataset __init__ signature')
     config = BreverConfig(file_config)
     return config
 

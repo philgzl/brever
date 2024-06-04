@@ -3,13 +3,13 @@ import os
 import yaml
 
 from brever.args import DatasetArgParser
-from brever.config import get_config
+from brever.config import get_config, get_dataset_default_config
 
 
 def main():
     paths = get_config('config/paths.yaml')
 
-    config = get_config('config/dataset.yaml')
+    config = get_dataset_default_config()
     config.update_from_args(args, parser.arg_map())
     if args.name is None:
         dataset_id = config.get_hash()

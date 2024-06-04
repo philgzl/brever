@@ -14,9 +14,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch_ema import ExponentialMovingAverage
 from tqdm import tqdm
 
-from .batching import BatchSamplerRegistry
-from .data import (BreverDataLoader, BreverDataset,
-                   DistributedBatchSamplerWrapper)
+from .batching import BatchSamplerRegistry, DistributedBatchSamplerWrapper
+from .data import BreverDataLoader, BreverDataset
 from .inspect import NoParse, Parse
 from .metrics import MetricRegistry
 from .models import count_params
@@ -189,10 +188,13 @@ class BreverTrainer:
                 (dset._duration, 'duration'),
                 (dset._effective_duration, 'effective duration'),
             ]:
-                h, m = divmod(int(duration), 3600)
-                _rank_zero_log(
-                    f'{dset_name} {duration_name}: {h} h {m//60} m {m%60} s'
-                )
+                if duration == float('inf'):
+                    fmt_time = 'inf'
+                else:
+                    h, m = divmod(int(duration), 3600)
+                    m, s = divmod(m, 60)
+                    fmt_time = f'{h} h {m} m {s} s'
+                _rank_zero_log(f'{dset_name} {duration_name}: {fmt_time}')
 
         # check for a checkpoint
         checkpoint_loaded = False
@@ -267,6 +269,10 @@ class BreverTrainer:
             if validate:
                 with torch.no_grad():
                     val_loss, val_metrics = self.routine(epoch, train=False)
+                self.get_model().on_validate(
+                    val_loss if len(val_loss) > 1
+                    else next(iter(val_loss.values()))
+                )
             else:
                 val_loss, val_metrics = {}, {}
             # ddp reduce
@@ -291,10 +297,6 @@ class BreverTrainer:
             # ddp sync
             if dist.is_initialized():
                 dist.barrier()
-            # update time spent
-            if self.rank == 0:
-                self.timer.step(validate)
-                self.timer.log()
         # plot and save losses
         if self.rank == 0:
             self.timer.final_log()
@@ -358,6 +360,10 @@ class BreverTrainer:
             output = avg_loss, avg_metrics
         if dist.is_initialized():
             dist.barrier()
+        # update time spent
+        if self.rank == 0:
+            self.timer.step(is_validation_step=not train)
+            self.timer.log()
         return output
 
     def reduce(self, *tensor_dicts):
@@ -564,7 +570,7 @@ class TrainingTimer:
 
     @property
     def train_steps(self):
-        return self.epochs - self.val_steps
+        return self.epochs
 
     @property
     def val_steps(self):
@@ -641,7 +647,8 @@ class LossLogger:
         plt.rc('grid', color='w', linestyle='solid')
         fig, ax = plt.subplots()
         for k, v in losses.items():
-            ax.plot(v[:, 0], v[:, 1], label=k)
+            if not k.startswith('metrics'):
+                ax.plot(v[:, 0], v[:, 1], label=k)
         ax.legend()
         ax.set_xlabel('epoch')
         ax.set_ylabel('error')
@@ -676,7 +683,13 @@ class CheckpointSaver:
                     self.save_func(filepath)
                     logging.info(f'New best {name}, saving {filepath}')
                     if not first_time:
-                        os.remove(self.best[name]['filepath'])
+                        if os.path.exists(self.best[name]['filepath']):
+                            os.remove(self.best[name]['filepath'])
+                        else:
+                            logging.warning(f'Previous best {name} checkpoint '
+                                            f'{self.best[name]["filepath"]} '
+                                            f'does not exist. Skipping '
+                                            'removal.')
                     self.best[name] = {'val': val, 'filepath': filepath}
 
     @staticmethod

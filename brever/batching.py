@@ -78,10 +78,10 @@ class BreverBatchSampler(torch.utils.data.Sampler):
             self.batch_size = int(batch_size)
         self.drop_last = drop_last
         self.shuffle = shuffle
-        self.seed = seed
         self.dynamic = dynamic
         self.sort = sort
         self.reverse = reverse
+        self._seed = random.Random(seed).randrange(2**32)
         self._epoch = 0
         self._previous_epoch = -1
         self._segment_lengths = None
@@ -108,12 +108,11 @@ class BreverBatchSampler(torch.utils.data.Sampler):
         self._batches = self._generate_batches(indices)
 
     def _generate_indices(self):
-        if self._segment_lengths is None:
-            self.get_segment_lengths()
+        self.get_segment_lengths()
         if self.sort:
             if self.shuffle:
                 # sort by length but randomize segments of same length
-                randomizer = random.Random(self.seed + self._epoch)
+                randomizer = random.Random(self._seed + self._epoch)
                 lengths = sorted(self._segment_lengths,
                                  key=lambda x: (x[1], randomizer.random()),
                                  reverse=self.reverse)
@@ -124,7 +123,7 @@ class BreverBatchSampler(torch.utils.data.Sampler):
         else:
             indices = list(range(len(self._segment_lengths)))
             if self.shuffle:
-                randomizer = random.Random(self.seed + self._epoch)
+                randomizer = random.Random(self._seed + self._epoch)
                 randomizer.shuffle(indices)
         return indices
 
@@ -135,9 +134,11 @@ class BreverBatchSampler(torch.utils.data.Sampler):
         else:
             dataset = self.dataset
             indices = range(len(dataset))
-        self._segment_lengths = [
-            (i, dataset.get_segment_length(j)) for i, j in enumerate(indices)
-        ]
+        if self._segment_lengths is None or dataset.rmm_dset is not None:
+            self._segment_lengths = [
+                (i, dataset.get_segment_length(j))
+                for i, j in enumerate(indices)
+            ]
 
     def _generate_batches(self, indices):
         raise NotImplementedError
@@ -146,7 +147,7 @@ class BreverBatchSampler(torch.utils.data.Sampler):
         self._epoch = epoch
 
     def shuffle_batches(self):
-        randomizer = random.Random(self.seed + self._epoch)
+        randomizer = random.Random(self._seed + self._epoch)
         randomizer.shuffle(self._batches)
 
     def __len__(self):
@@ -273,3 +274,17 @@ class BucketBatchSampler(BreverBatchSampler):
                     batches.append(batch)
 
         return batches
+
+
+class DistributedBatchSamplerWrapper(torch.utils.data.DistributedSampler):
+    def __init__(self, sampler, *args, **kwargs):
+        super().__init__(dataset=sampler, *args, **kwargs)
+        self.sampler = sampler
+
+    def __iter__(self):
+        for dist_index in super().__iter__():
+            yield [i for i, length in self.sampler._batches[dist_index]]
+
+    def set_epoch(self, epoch):
+        super().set_epoch(epoch)
+        self.sampler.set_epoch(epoch)

@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
-from ..criterion import CriterionRegistry
+from ..criterion import init_criterion
 from ..registry import Registry
 
 ModelRegistry = Registry('model')
@@ -47,7 +47,7 @@ class BreverBaseModel(nn.Module):
         super().__init__()
         if criterion is not None:
             if isinstance(criterion, str):
-                criterion = CriterionRegistry.get(criterion)
+                criterion = init_criterion(criterion)
             self.criterion = criterion
         self._compiled_call_impl = None
 
@@ -315,6 +315,19 @@ class BreverBaseModel(nn.Module):
             The associated training dataloader.
         epochs : int
             Number of epochs. Useful for setting learning rate schedules.
+        """
+        pass
+
+    def on_validate(self, val_loss):
+        """Validation hook.
+
+        Called after each validation loop. Can be used to schedule learning
+        rates.
+
+        Parameters
+        ----------
+        val_loss : torch.Tensor or dict
+            Validation loss. Can be a dict if `val_step` returns a dict.
         """
         pass
 

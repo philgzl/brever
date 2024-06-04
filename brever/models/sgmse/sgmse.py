@@ -11,6 +11,15 @@ from .solvers import SolverRegistry
 
 @ModelRegistry.register('sgmsep')
 class SGMSEp(BreverBaseModel):
+    """Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] J. Richter, S. Welker, J.-M. Lemercier, B. Lay and T. Gerkmann,
+           "Speech Enhancement and Dereverberation with Diffusion-Based
+           Generative Models", in IEEE/ACM TASLP, 2023.
+    """
+
     def __init__(
         self,
         stft_frame_length: int = 512,
@@ -30,6 +39,7 @@ class SGMSEp(BreverBaseModel):
         sde_cosine_shift: float = 3.0,
         sde_cosine_beta_clamp: float = 10.0,
         sde_bb_scaling: float = 0.1,
+        sde_bb_k: float = 10.0,
         solver_name: str = 'pc',
         solver_num_steps: int = 16,
         solver_edm_schurn: float = float('inf'),
@@ -40,12 +50,18 @@ class SGMSEp(BreverBaseModel):
         solver_pc_corrector_snr: float = 0.5,
         net_base_channels: int = 128,
         net_channel_mult: list[int] = [1, 1, 2, 2, 2, 2, 2],
-        net_num_res_blocks: int = 2,
-        net_noise_channels: int = 256,
-        net_emb_channels: int = 512,
+        net_num_blocks_per_res: int = 2,
+        net_noise_channel_mult: int = 2,
+        net_emb_channel_mult: int = 4,
         net_fir_kernel: list[int] = [1, 3, 3, 1],
         net_attn_resolutions: list[int] = [16],
         net_attn_bottleneck: bool = True,
+        net_encoder_type: str = 'skip',
+        net_decoder_type: str = 'skip',
+        net_block_type: str = 'ncsn',
+        net_skip_scale: float = 0.5 ** 0.5,
+        net_dropout: float = 0.0,
+        net_aux_out_channels: int = 4,
         preconditioning_cskip: str = 'richter',
         preconditioning_cout: str = 'richter',
         preconditioning_cin: str = 'richter',
@@ -82,6 +98,7 @@ class SGMSEp(BreverBaseModel):
             shift=sde_cosine_shift,
             beta_clamp=sde_cosine_beta_clamp,
             scaling=sde_bb_scaling,
+            k=sde_bb_k,
         )
 
         solver_cls = SolverRegistry.get(solver_name)
@@ -99,12 +116,18 @@ class SGMSEp(BreverBaseModel):
             num_freqs=stft_frame_length//2,
             base_channels=net_base_channels,
             channel_mult=net_channel_mult,
-            num_res_blocks=net_num_res_blocks,
-            noise_channels=net_noise_channels,
-            emb_channels=net_emb_channels,
+            num_blocks_per_res=net_num_blocks_per_res,
+            noise_channel_mult=net_noise_channel_mult,
+            emb_channel_mult=net_emb_channel_mult,
             fir_kernel=net_fir_kernel,
             attn_resolutions=net_attn_resolutions,
             attn_bottleneck=net_attn_bottleneck,
+            encoder_type=net_encoder_type,
+            decoder_type=net_decoder_type,
+            block_type=net_block_type,
+            skip_scale=net_skip_scale,
+            dropout=net_dropout,
+            aux_out_channels=net_aux_out_channels,
         )
         self.model = Preconditioning(
             raw_net=raw_net,
@@ -176,26 +199,34 @@ class SGMSEp(BreverBaseModel):
 
 @ModelRegistry.register('sgmsepm')
 class SGMSEpM(SGMSEp):
+    """Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] J.-M. Lemercier, J. Richter, S. Welker and T. Gerkmann, "Analysing
+           Diffusion-Based Generative Approaches Versus Discriminative
+           Approaches for Speech Restoration", in Proc. IEEE ICASSP, 2023.
+    """
 
     _is_submodel = True
 
     def __init__(
         self,
         net_channel_mult: list[int] = [1, 2, 2, 2],
-        net_num_res_blocks: int = 1,
-        net_attn_resolutions: list[int] = [0],
+        net_num_blocks_per_res: int = 1,
+        net_attn_resolutions: list[int] = [],
         **kwargs,
     ):
         super().__init__(
             net_channel_mult=net_channel_mult,
-            net_num_res_blocks=net_num_res_blocks,
+            net_num_blocks_per_res=net_num_blocks_per_res,
             net_attn_resolutions=net_attn_resolutions,
             **kwargs,
         )
 
 
-@ModelRegistry.register('idmse')
-class IDMSE(SGMSEpM):
+@ModelRegistry.register('sgmsepheun')
+class sgmsepheun(SGMSEp):
 
     _is_submodel = True
 
@@ -225,21 +256,83 @@ class IDMSE(SGMSEpM):
         )
 
 
-@ModelRegistry.register('idmselarge')
-class IDMSELarge(IDMSE):
+@ModelRegistry.register('sgmsepmheun')
+class sgmsepmheun(SGMSEpM):
 
     _is_submodel = True
 
     def __init__(
         self,
-        net_channel_mult: list[int] = [1, 1, 2, 2, 2, 2, 2],
-        net_num_res_blocks: int = 2,
-        net_attn_resolutions: list[int] = [16],
+        sde_name: str = 'brever-oucosine',
+        sde_stiffness: float = 0.0,
+        solver_name: str = 'edm',
+        preconditioning_cskip: str = 'edm',
+        preconditioning_cout: str = 'edm',
+        preconditioning_cin: str = 'edm',
+        preconditioning_cnoise: str = 'edm',
+        preconditioning_cshift: str = 'edm',
+        preconditioning_weight: str = 'edm',
         **kwargs,
     ):
         super().__init__(
+            sde_name=sde_name,
+            solver_name=solver_name,
+            preconditioning_cskip=preconditioning_cskip,
+            preconditioning_cout=preconditioning_cout,
+            preconditioning_cin=preconditioning_cin,
+            preconditioning_cnoise=preconditioning_cnoise,
+            preconditioning_cshift=preconditioning_cshift,
+            preconditioning_weight=preconditioning_weight,
+            **kwargs,
+        )
+
+
+@ModelRegistry.register('idmse')
+class IDMSE(SGMSEp):
+
+    _is_submodel = True
+
+    def __init__(
+        self,
+        sde_name: str = 'brever-oucosine',
+        sde_stiffness: float = 0.0,
+        solver_name: str = 'edm',
+        preconditioning_cskip: str = 'edm',
+        preconditioning_cout: str = 'edm',
+        preconditioning_cin: str = 'edm',
+        preconditioning_cnoise: str = 'edm',
+        preconditioning_cshift: str = 'edm',
+        preconditioning_weight: str = 'edm',
+        net_base_channels: int = 64,
+        net_channel_mult: list[int] = [1, 2, 3, 4],
+        net_num_blocks_per_res: int = 1,
+        net_noise_channel_mult: int = 1,
+        net_emb_channel_mult: int = 4,
+        net_fir_kernel: list[int] = [1, 1],
+        net_attn_resolutions: list[int] = [],
+        net_encoder_type: str = 'standard',
+        net_decoder_type: str = 'standard',
+        net_block_type: str = 'adm',
+        **kwargs,
+    ):
+        super().__init__(
+            sde_name=sde_name,
+            solver_name=solver_name,
+            preconditioning_cskip=preconditioning_cskip,
+            preconditioning_cout=preconditioning_cout,
+            preconditioning_cin=preconditioning_cin,
+            preconditioning_cnoise=preconditioning_cnoise,
+            preconditioning_cshift=preconditioning_cshift,
+            preconditioning_weight=preconditioning_weight,
+            net_base_channels=net_base_channels,
             net_channel_mult=net_channel_mult,
-            net_num_res_blocks=net_num_res_blocks,
+            net_num_blocks_per_res=net_num_blocks_per_res,
+            net_noise_channel_mult=net_noise_channel_mult,
+            net_emb_channel_mult=net_emb_channel_mult,
+            net_fir_kernel=net_fir_kernel,
             net_attn_resolutions=net_attn_resolutions,
+            net_encoder_type=net_encoder_type,
+            net_decoder_type=net_decoder_type,
+            net_block_type=net_block_type,
             **kwargs,
         )

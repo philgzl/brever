@@ -6,13 +6,16 @@ import sys
 import tarfile
 from typing import Callable
 
+import numpy as np
 import soundfile as sf
 import torch
 import torch.nn.functional as F
 import torchaudio
+import yaml
 from tqdm import tqdm
 
 from .inspect import NoParse, Path
+from .mixture import MixtureMetadata, RandomMixtureMaker
 
 Transform = Callable[[torch.Tensor], torch.Tensor | tuple[torch.Tensor, ...]]
 
@@ -82,6 +85,8 @@ class BreverDataset(torch.utils.data.Dataset):
         max_segment_length: float = 0.0,
         tar: bool = True,
         transform: NoParse[Transform | None] = None,
+        dynamic_mixing: bool = False,
+        dynamic_mixtures_per_epoch: int = 1000,
     ):
         self.path = path
         self.segment_length = round(segment_length*fs)
@@ -90,10 +95,16 @@ class BreverDataset(torch.utils.data.Dataset):
         self.sources = sources
         self.segment_strategy = segment_strategy
         self.max_segment_length = round(max_segment_length*fs)
-        if tar:
+        if tar and not dynamic_mixing:
             self.archive = TarArchive(os.path.join(path, 'audio.tar'))
         else:
             self.archive = None
+        if dynamic_mixing:
+            self.rmm_dset = RandomMixtureMakerDataset(
+                path, sources=sources, size=dynamic_mixtures_per_epoch
+            )
+        else:
+            self.rmm_dset = None
         self.transform = transform
         self.preloaded_data = None
         self.get_segment_info()
@@ -114,30 +125,36 @@ class BreverDataset(torch.utils.data.Dataset):
         else:
             for file_idx, file_length in enumerate(file_lengths):
                 self._add_segment_info(file_idx, file_length)
-        self._effective_duration = sum(
-            end - start for _, (start, end) in self._segment_info
-        )/self.fs
+        if self.rmm_dset is None:
+            self._effective_duration = sum(
+                end - start for _, (start, end) in self._segment_info
+            )/self.fs
+        else:
+            self._effective_duration = float('inf')
 
     def get_file_lengths(self):
-        n_files = self.count_files()
-        file_lengths = []
-        logging.info('Reading file lengths...')
-        for file_idx in tqdm(range(n_files)):
-            source_paths = self.build_paths(file_idx)
-            first_file = self.get_file(source_paths[0])
-            first_metadata = torchaudio.info(first_file)
-            first_length = first_metadata.num_frames
-            # check all sources have the same length
-            for source_path in source_paths[1:]:
-                source_file = self.get_file(source_path)
-                source_metadata = torchaudio.info(source_file)
-                source_length = source_metadata.num_frames
-                if source_length != first_length:
-                    raise ValueError(
-                        f'sources {file_idx} do not all have the same length'
-                    )
-            file_lengths.append(first_length)
-        self._duration = sum(file_lengths)/self.fs
+        if self.rmm_dset is None:
+            n_files = self.count_files()
+            file_lengths = []
+            logging.info('Reading file lengths...')
+            for file_idx in tqdm(range(n_files)):
+                source_paths = self.build_paths(file_idx)
+                first_file = self.get_file(source_paths[0])
+                first_metadata = torchaudio.info(first_file)
+                first_length = first_metadata.num_frames
+                # check all sources have the same length
+                for source_path in source_paths[1:]:
+                    source_file = self.get_file(source_path)
+                    source_metadata = torchaudio.info(source_file)
+                    source_length = source_metadata.num_frames
+                    if source_length != first_length:
+                        raise ValueError(f'sources {file_idx} do not all have'
+                                         'the same length')
+                file_lengths.append(first_length)
+            self._duration = sum(file_lengths)/self.fs
+        else:
+            file_lengths = self.rmm_dset.file_lengths
+            self._duration = float('inf')
         return file_lengths
 
     def count_files(self):
@@ -219,21 +236,25 @@ class BreverDataset(torch.utils.data.Dataset):
         if self.segment_strategy == 'random' and self.segment_length != 0.0:
             start = random.randint(start, end - self.segment_length)
             end = start + self.segment_length
-        source_paths = self.build_paths(file_idx)
-        sources = []
-        for source_path in source_paths:
-            source = self.load_file(source_path)
-            if end > source.shape[-1]:
-                if self.segment_strategy not in ['pad', 'random']:
-                    raise ValueError(
-                        "attempting to load a segment outside of file range "
-                        "but segment strategy is not in ['pad', 'random'], "
-                        f"got {self.segment_strategy}"
-                    )
-                source = F.pad(source, (0, end - source.shape[-1]))
-            source = source[:, start:end]
-            sources.append(source)
-        return torch.stack(sources)
+        if self.rmm_dset is None:
+            source_paths = self.build_paths(file_idx)
+            sources = [self.load_file(p) for p in source_paths]
+        else:
+            sources = self.rmm_dset[file_idx]
+        sources = torch.from_numpy(np.stack(sources))
+        if sources.ndim == 2:
+            sources = sources.unsqueeze(1)
+        else:
+            sources = sources.transpose(1, 2)
+        if end > sources.shape[-1]:
+            if self.segment_strategy not in ['pad', 'random']:
+                raise ValueError(
+                    "attempting to load a segment outside of file "
+                    "range but segment strategy is not in ['pad', "
+                    f"'random'], got {self.segment_strategy}"
+                )
+            sources = F.pad(sources, (0, end - sources.shape[-1]))
+        return sources[..., start:end]
 
     def load_file(self, path):
         file = self.get_file(path)
@@ -247,8 +268,7 @@ class BreverDataset(torch.utils.data.Dataset):
                 'file sampling rate does not match dataset fs attribute, got '
                 f'{fs} and {self.fs}'
             )
-        x = x.reshape(1, -1) if x.ndim == 1 else x.T
-        return torch.from_numpy(x)
+        return x
 
     def __len__(self):
         return len(self._segment_info)
@@ -286,6 +306,8 @@ class BreverDataset(torch.utils.data.Dataset):
     def preload(self, device, tqdm_desc=None):
         if self.segment_strategy == 'random':
             raise ValueError("can't preload when segment_strategy is 'random'")
+        if self.rmm_dset is not None:
+            raise ValueError("can't preload when using dynamic mixing")
         preloaded_data = []
         for i in tqdm(range(len(self)), file=sys.stdout, desc=tqdm_desc):
             sources = self.__getitem__(i)
@@ -297,6 +319,11 @@ class BreverDataset(torch.utils.data.Dataset):
         # set the attribute only at the end, otherwise __getitem__ will attempt
         # to access it inside the loop, causing infinite recursion
         self.preloaded_data = preloaded_data
+
+    def set_epoch(self, epoch):
+        if self.rmm_dset is not None:
+            self.rmm_dset.set_epoch(epoch)
+            self.get_segment_info()
 
 
 class TarArchive:
@@ -371,6 +398,11 @@ class BreverDataLoader(torch.utils.data.DataLoader):
 
     def set_epoch(self, epoch):
         self.batch_sampler.set_epoch(epoch)
+        if isinstance(self.dataset, torch.utils.data.Subset):
+            dataset = self.dataset.dataset
+        else:
+            dataset = self.dataset
+        dataset.set_epoch(epoch)
 
     @staticmethod
     def _collate_fn(unbatched):
@@ -459,15 +491,40 @@ class BreverDataLoader(torch.utils.data.DataLoader):
         return batched, lengths
 
 
-class DistributedBatchSamplerWrapper(torch.utils.data.DistributedSampler):
-    def __init__(self, sampler, *args, **kwargs):
-        super().__init__(dataset=sampler, *args, **kwargs)
-        self.sampler = sampler
+class RandomMixtureMakerDataset:
+    def __init__(self, path, sources, size):
+        self.sources = sources
+        self.size = size
 
-    def __iter__(self):
-        for dist_index in super().__iter__():
-            yield [i for i, length in self.sampler._batches[dist_index]]
+        cfg_path = os.path.join(path, 'config.yaml')
+        self.cfg = self.get_config(cfg_path)
+        self.rmm = RandomMixtureMaker(**self.cfg)
+        self.set_epoch(0)
 
     def set_epoch(self, epoch):
-        super().set_epoch(epoch)
-        self.sampler.set_epoch(epoch)
+        kwargs = self.cfg.copy()
+        kwargs.update({'seed': epoch})
+        self.rmm.metadata = MixtureMetadata(loader=self.rmm.loader, **kwargs)
+
+        self._metadatas = {}
+        for i in range(self.size):
+            self.rmm.metadata.roll()
+            self._metadatas[i] = self.rmm.metadata.get()
+
+    def __getitem__(self, index):
+        metadata = self._metadatas[index]
+        mix_obj = self.rmm.make_from_metadata(metadata)
+        return [
+            getattr(mix_obj, source).astype('float32')
+            for source in self.sources
+        ]
+
+    @property
+    def file_lengths(self):
+        return [self._metadatas[i]['frames'] for i in range(self.size)]
+
+    def get_config(self, path):
+        # cannot import get_config from config module due to circular import
+        with open(path) as f:
+            cfg = yaml.load(f, Loader=yaml.Loader)
+        return cfg['rmm']

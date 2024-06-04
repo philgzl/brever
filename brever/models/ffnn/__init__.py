@@ -1,1 +1,3 @@
-from .ffnn import FFNN  # noqa: F401
+from .ffnn import FFNN
+
+__all__ = ['FFNN']

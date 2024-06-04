@@ -1,9 +1,9 @@
 # Copyright 2020 Szu-Wei Fu
 # Copyright 2021 Peter Plantinga
-# https://github.com/speechbrain/speechbrain/tree/develop/recipes/Voicebank/enhance/MetricGAN
+# https://github.com/speechbrain/speechbrain
 #
 # Copyright 2023 Wooseok Shin
-# https://github.com/wooseok-shin/MetricGAN-OKD/tree/main
+# https://github.com/wooseok-shin/MetricGAN-OKD
 #
 # Copyright 2023 Panagiotis Apostolidis
 # Copyright 2024 Philippe Gonzalez
@@ -31,6 +31,15 @@ from ..base import BreverBaseModel, ModelRegistry
 
 @ModelRegistry.register('metricganokd')
 class MetricGANOKD(BreverBaseModel):
+    """Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] W. Shin, B. H. Lee, J. S. Kim, H. J. Park and S. W. Han, "MetricGAN-
+           OKD: Multi-Metric Optimization of MetricGAN via Online Knowledge
+           Distillation for Speech Enhancement", in Proc. ICML, 2023.
+    """
+
     # Key differences with SpeechBrain and wooseok-shin/MetricGAN-OKD:
     # - The generator and discriminator are alternatively updated for each
     # mini-batch, like in traditional GANs, instead of iterating over the
@@ -491,6 +500,14 @@ class Metrics:
 
 @ModelRegistry.register('metricganp')
 class MetricGANp(MetricGANOKD):
+    """Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] S.-W. Fu, C. Yu, T.-A. Hsieh, P. Plantinga, M. Ravanelli, X. Lu and
+           Y. Tsao, "MetricGAN+: An Improved Version of MetricGAN for Speech
+           Enhancement", in Proc. INTERSPEECH, 2021.
+    """
 
     _is_submodel = True
 

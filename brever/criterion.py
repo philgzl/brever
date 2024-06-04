@@ -1,12 +1,21 @@
+import inspect
 from itertools import permutations
 
 import torch
 
+from .modules import STFT
 from .registry import Registry
 
 eps = torch.finfo(torch.float32).eps
 
 CriterionRegistry = Registry('criterion')
+
+
+def init_criterion(name, **kwargs):
+    criterion = CriterionRegistry.get(name)
+    if inspect.isclass(criterion):
+        criterion = criterion(**kwargs)
+    return criterion
 
 
 @CriterionRegistry.register('sisnr')
@@ -121,6 +130,100 @@ def mse(x, y, lengths, weight=None):
     if weight is not None:
         loss *= weight.view(-1, *[1]*(x.ndim - 2))
     return loss.mean(tuple(range(1, x.ndim - 1)))
+
+
+@CriterionRegistry.register('multiresyu')
+class MultiResYuLoss:
+    """Multi-resolution STFT magnitude + L1 time-domain loss.
+
+    Proposed in [1]_.
+
+    Parameters
+    ----------
+    frame_lengths : list of int
+        Frame lengths for STFTs. Default is `[512]`.
+    hop_lengths : list of int or None
+        Hop lengths for STFTs. If `None`, defaults to half the frame lengths.
+    time_domain_weight : float
+        Weight for the time-domain loss. Default is `0.5`.
+    spectral_weight : float
+        Weight for the spectral loss. Default is `0.5`.
+    scale_invariant : bool
+        Whether to make the loss scale-invariant. Default is `False`.
+
+    References
+    ----------
+    .. [1] Y.-J. Lu, S. Cornell, X. Chang, W. Zhang, C. Li, Z. Ni, Z.-Q. Wang
+           and S. Watanabe, "Towards Low-Distortion Multi-Channel Speech
+           Enhancement: The ESPNet-SE Submission to the L3DAS22 Challenge", in
+           Proc. IEEE ICASSP, 2022.
+    """
+
+    def __init__(
+        self,
+        frame_lengths=[512],
+        hop_lengths=None,
+        time_domain_weight=0.5,
+        spectral_weight=0.5,
+        scale_invariant=False,
+    ):
+        if hop_lengths is None:
+            hop_lengths = [x // 2 for x in frame_lengths]
+
+        self.stfts = [
+            STFT(
+                frame_length=frame_length,
+                hop_length=hop_length,
+                window=None,
+                normalized=False,
+            )
+            for frame_length, hop_length in zip(frame_lengths, hop_lengths)
+        ]
+
+        self.time_domain_weight = time_domain_weight
+        self.spectral_weight = spectral_weight
+        self.scale_invariant = scale_invariant
+
+    def __call__(self, x, y, lengths):
+        """Calculate loss.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Estimated sources. Shape `(batch_size, ..., length)`.
+        y : torch.Tensor
+            True sources. Shape `(batch_size, ..., length)`.
+        lengths : torch.Tensor
+            Original length of unbatched sources. Shape `(batch_size,)`.
+
+        Returns
+        -------
+        loss : torch.Tensor
+            Loss. Shape `(batch_size,)`.
+        """
+        assert x.shape == y.shape
+
+        x, y = apply_mask(x, y, lengths)
+
+        if self.scale_invariant:
+            scaling_factor = (x * y).sum(-1, keepdim=True) / \
+                (x.pow(2).sum(-1, keepdim=True) + eps)
+        else:
+            scaling_factor = 1
+
+        time_domain_loss = (scaling_factor * x - y).abs().sum(-1)
+
+        output = self.time_domain_weight * time_domain_loss
+
+        for stft in self.stfts:
+            y_mag = stft(y).abs()
+            x_mag = stft(scaling_factor * x).abs()
+            spectral_loss = (x_mag - y_mag).abs().sum((-2, -1))
+
+            output += self.spectral_weight * spectral_loss / len(self.stfts)
+
+        output /= lengths.view(-1, *[1]*(x.ndim - 2))
+        return output.mean(tuple(range(1, x.ndim - 1)))
 
 
 def apply_mask(x, y, lengths):

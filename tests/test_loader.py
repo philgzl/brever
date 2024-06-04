@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from brever.io import AudioFileLoader
+from brever.mixture.io import AudioFileLoader
 
 
 @pytest.fixture(scope="session")

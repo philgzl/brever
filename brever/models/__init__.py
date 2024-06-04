@@ -1,12 +1,27 @@
 import torch
 
-from .base import ModelRegistry  # noqa: F401
-from .convtasnet import ConvTasNet  # noqa: F401
-from .dccrn import DCCRN  # noqa: F401
-from .ffnn import FFNN  # noqa: F401
-from .manner import MANNER  # noqa: F401
-from .metricganokd import MetricGANOKD, MetricGANp  # noqa: F401
-from .sgmse import IDMSE, IDMSELarge, SGMSEp, SGMSEpM  # noqa: F401
+from .base import ModelRegistry
+from .convtasnet import ConvTasNet
+from .dccrn import DCCRN
+from .ffnn import FFNN
+from .manner import MANNER
+from .metricganokd import MetricGANOKD, MetricGANp
+from .sgmse import IDMSE, SGMSEp, SGMSEpM
+from .tfgridnet import TFGridNet
+
+__all__ = [
+    'ModelRegistry',
+    'ConvTasNet',
+    'DCCRN',
+    'FFNN',
+    'MANNER',
+    'MetricGANOKD',
+    'MetricGANp',
+    'IDMSE',
+    'SGMSEp',
+    'SGMSEpM',
+    'TFGridNet',
+]
 
 
 def count_params(model):
@@ -14,6 +29,9 @@ def count_params(model):
 
 
 @torch.no_grad()
-def set_all_weights(model, val):
+def set_all_weights(model, val=1e-3, buffers=False):
     for p in model.parameters():
         p.fill_(val)
+    if buffers:
+        for b in model.buffers():
+            b.fill_(val)

@@ -9,8 +9,9 @@ import pytest
 import soundfile as sf
 import yaml
 
+from brever.batching import BatchSamplerRegistry
 from brever.config import get_config
-from brever.data import BreverDataset
+from brever.data import BreverDataLoader, BreverDataset
 
 FS = 16000
 N_MIXTURES = 100
@@ -65,14 +66,14 @@ def real_dset(tmp_path_factory):
     with open(config_path, 'w') as f:
         yaml.dump(config.to_dict(), f)
 
-    subprocess.call([
+    subprocess.check_call([
         'python',
         'scripts/create_dataset.py',
         tempdir,
         '-f'
     ])
 
-    subprocess.call([
+    subprocess.check_call([
         'python',
         'scripts/create_dataset.py',
         tempdir,
@@ -106,10 +107,10 @@ def test_segment_strat_on_dummy_dset(dummy_dset, segment_strat, dset_length):
 @pytest.mark.parametrize(
     'segment_strat, dset_length',
     [
-        ['drop', 30],
-        ['pass', 34],
-        ['pad', 34],
-        ['overlap', 34],
+        ['drop', 31],
+        ['pass', 37],
+        ['pad', 37],
+        ['overlap', 37],
     ]
 )
 @pytest.mark.parametrize('tar', [True, False])
@@ -148,10 +149,10 @@ def test_segment_len_on_dummy_dset(dummy_dset, segment_length, dset_length):
 @pytest.mark.parametrize(
     'segment_length, dset_length',
     [
-        [0.25, 132],
-        [0.50, 67],
-        [1.00, 34],
-        [2.00, 19],
+        [0.25, 137],
+        [0.50, 71],
+        [1.00, 37],
+        [2.00, 21],
     ]
 )
 @pytest.mark.parametrize('tar', [True, False])
@@ -164,3 +165,45 @@ def test_segment_len_on_real_dset(real_dset, segment_length, dset_length, tar):
     assert len(dataset) == dset_length
     for inputs in dataset:
         break
+
+
+@pytest.mark.parametrize('segment_length', [4.0])
+@pytest.mark.parametrize('overlap_length', [1.0])
+@pytest.mark.parametrize('segment_strategy', [
+    'pass',
+])
+@pytest.mark.parametrize('sampler', ['bucket'])
+@pytest.mark.parametrize('dynamic_batch_size, batch_size', [
+    [True, 16],
+])
+@pytest.mark.parametrize('drop_last', [False])
+@pytest.mark.parametrize('shuffle', [True])
+@pytest.mark.parametrize('dynamic_mixtures_per_epoch', [8])
+def test_dynamic_mixing(real_dset, segment_length, overlap_length,
+                        segment_strategy, sampler, batch_size, drop_last,
+                        shuffle, dynamic_batch_size,
+                        dynamic_mixtures_per_epoch):
+    dataset = BreverDataset(
+        real_dset,
+        segment_length=segment_length,
+        overlap_length=overlap_length,
+        segment_strategy=segment_strategy,
+        dynamic_mixing=True,
+        dynamic_mixtures_per_epoch=dynamic_mixtures_per_epoch,
+    )
+    sampler = BatchSamplerRegistry.get(sampler)(
+        dataset=dataset,
+        batch_size=batch_size,
+        drop_last=drop_last,
+        shuffle=shuffle,
+        dynamic=dynamic_batch_size,
+    )
+    dataloader = BreverDataLoader(
+        dataset=dataset,
+        batch_sampler=sampler,
+    )
+    for batch in dataloader:
+        pass
+    dataloader.set_epoch(1)
+    for batch in dataloader:
+        pass

@@ -14,10 +14,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch_ema import ExponentialMovingAverage as EMA
 from tqdm import tqdm
 
-from brever.batching import SortedBatchSampler
+from brever.batching import DistributedBatchSamplerWrapper, SortedBatchSampler
 from brever.config import get_config
-from brever.data import (BreverDataLoader, BreverDataset,
-                         DistributedBatchSamplerWrapper)
+from brever.data import BreverDataLoader, BreverDataset
 from brever.inspect import Path
 from brever.logger import set_logger
 from brever.metrics import MetricRegistry

@@ -9,7 +9,7 @@ rmm:
   uniform_tmr: false
   reflection_boundary: 0.05
   speakers: !!set
-    timit_.*: null
+    libri_.*: null
   noises: !!set
     dcase_.*: null
   rooms: !!set

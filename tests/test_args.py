@@ -1,7 +1,7 @@
 import pytest
 
 from brever.args import DatasetArgParser, ModelArgParser
-from brever.config import get_config, get_model_default_config
+from brever.config import get_dataset_default_config, get_model_default_config
 from brever.data import BreverDataset
 from brever.inspect import get_func_spec
 from brever.mixture import RandomMixtureMaker
@@ -35,7 +35,7 @@ def test_dataset_args():
 
     assert all(arg is not None for arg in args.__dict__.values())
 
-    config = get_config('config/dataset.yaml')
+    config = get_dataset_default_config()
     config.update_from_args(args, parser.arg_map())
 
 

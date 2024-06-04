@@ -18,6 +18,15 @@ from ..base import BreverBaseModel, ModelRegistry
 
 @ModelRegistry.register('convtasnet')
 class ConvTasNet(BreverBaseModel):
+    """Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] Y. Luo and N. Mesgarani, "Conv-TasNet: Surpassing Ideal Time-
+           Frequency Magnitude Masking for Speech Separation", in IEEE/ACM
+           TASLP, 2019.
+    """
+
     def __init__(
         self,
         filters: int = 512,

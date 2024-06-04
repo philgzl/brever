@@ -8,6 +8,7 @@ Speech enhancement in noisy and reverberant environments using deep neural netwo
   * DCCRN ([Y. Hu et al.](https://doi.org/10.21437/Interspeech.2020-2537))
   * SGMSE+ ([J. Richter et al.](https://doi.org/10.1109/TASLP.2023.3285241)), SGMSE+M ([J.-M. Lemercier et al.](https://doi.org/10.1109/ICASSP49357.2023.10095258))
   * MANNER ([H. J. Park et al.](https://doi.org/10.1109/ICASSP43922.2022.9747120))
+  * TF-GridNet ([Z.-Q. Wang et al.](https://doi.org/10.1109/TASLP.2023.3304482))
   * MetricGAN+ ([S. Fu et al.](https://doi.org/10.21437/Interspeech.2021-599)), MetricGAN-OKD ([W. Shin et al.](https://proceedings.mlr.press/v202/shin23b.html)) [experimental; does not seem to work]
 * Evaluate models in terms of different metrics: PESQ, STOI, ESTOI, SNR, SI-SNR.
 
@@ -258,6 +259,8 @@ usage: init_model.py [-h] [--segment_length SEGMENT_LENGTH]
                      [--overlap_length OVERLAP_LENGTH] [--sources SOURCES]
                      [--segment_strategy SEGMENT_STRATEGY]
                      [--max_segment_length MAX_SEGMENT_LENGTH] [--tar TAR]
+                     [--dynamic_mixing DYNAMIC_MIXING]
+                     [--dynamic_mixtures_per_epoch DYNAMIC_MIXTURES_PER_EPOCH]
                      [--workers WORKERS] [--epochs EPOCHS] [--device DEVICE]
                      [--batch_sampler BATCH_SAMPLER] [--batch_size BATCH_SIZE]
                      [--num_buckets NUM_BUCKETS]
@@ -271,13 +274,13 @@ usage: init_model.py [-h] [--segment_length SEGMENT_LENGTH]
                      [--save_on_epochs SAVE_ON_EPOCHS] [--seed SEED]
                      --train_path TRAIN_PATH --val_path VAL_PATH [-f]
                      [-n NAME]
-                     {convtasnet,dccrn,ffnn,manner,metricganokd,metricganp,sgmsep,sgmsepm,idmse,idmselarge}
+                     {convtasnet,dccrn,ffnn,manner,metricganokd,metricganp,sgmsep,sgmsepm,idmse,tfgridnet}
                      ...
 
 initialize a model
 
 positional arguments:
-  {convtasnet,dccrn,ffnn,manner,metricganokd,metricganp,sgmsep,sgmsepm,idmse,idmselarge}
+  {convtasnet,dccrn,ffnn,manner,metricganokd,metricganp,sgmsep,sgmsepm,idmse,tfgridnet}
                         model architecture
 
 options:
@@ -292,6 +295,8 @@ dataset options:
   --segment_strategy SEGMENT_STRATEGY
   --max_segment_length MAX_SEGMENT_LENGTH
   --tar TAR
+  --dynamic_mixing DYNAMIC_MIXING
+  --dynamic_mixtures_per_epoch DYNAMIC_MIXTURES_PER_EPOCH
 
 trainer options:
   --workers WORKERS
@@ -329,6 +334,8 @@ usage: train_model.py [-h] [-f] [--wandb_run_id WANDB_RUN_ID]
                       [--overlap_length OVERLAP_LENGTH] [--sources SOURCES]
                       [--segment_strategy SEGMENT_STRATEGY]
                       [--max_segment_length MAX_SEGMENT_LENGTH] [--tar TAR]
+                      [--dynamic_mixing DYNAMIC_MIXING]
+                      [--dynamic_mixtures_per_epoch DYNAMIC_MIXTURES_PER_EPOCH]
                       [--workers WORKERS] [--epochs EPOCHS] [--device DEVICE]
                       [--batch_sampler BATCH_SAMPLER]
                       [--batch_size BATCH_SIZE] [--num_buckets NUM_BUCKETS]
@@ -361,6 +368,8 @@ the following options supersede the config file:
   --segment_strategy SEGMENT_STRATEGY
   --max_segment_length MAX_SEGMENT_LENGTH
   --tar TAR
+  --dynamic_mixing DYNAMIC_MIXING
+  --dynamic_mixtures_per_epoch DYNAMIC_MIXTURES_PER_EPOCH
   --workers WORKERS
   --epochs EPOCHS
   --device DEVICE

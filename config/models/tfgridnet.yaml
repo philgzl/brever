@@ -1,4 +1,4 @@
-arch: convtasnet
+arch: tfgridnet
 seed: 0
 train_path: none
 val_path: none
@@ -19,7 +19,7 @@ trainer:
   epochs: 100
   device: cuda
   batch_sampler: bucket
-  batch_size: 128
+  batch_size: 64
   num_buckets: 10
   dynamic_batch_size: true
   fs: 16000
@@ -32,25 +32,28 @@ trainer:
   use_wandb: false
   profile: false
   val_metrics: !!set
+    pesq: null
     estoi: null
     snr: null
-    pesq: null
   val_period: 10
   use_amp: true
   compile: false
   save_on_epochs: []
 model:
-  filters: 512
-  filter_length: 32
-  bottleneck_channels: 128
-  hidden_channels: 512
-  skip_channels: 128
-  kernel_size: 3
-  layers: 8
-  repeats: 3
-  output_sources: 1
-  causal: false
-  criterion: snr
+  n_srcs: 1
+  n_fft: 256
+  stride: 128
+  window: hann
+  n_layers: 6
+  lstm_hidden_units: 128
+  attn_n_head: 4
+  attn_approx_qk_dim: 512
+  emb_dim: 32
+  emb_ks: 4
+  emb_hs: 4
+  activation: PReLU
+  eps: 1.0e-05
+  criterion: multiresyu
   optimizer: Adam
   learning_rate: 0.001
-  grad_clip: 5.0
+  grad_clip: 1.0

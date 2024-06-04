@@ -27,6 +27,15 @@ from .complex_batchnorm import ComplexBatchNorm2d
 
 @ModelRegistry.register('dccrn')
 class DCCRN(BreverBaseModel):
+    """Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] Y. Hu, Y. Liu, S. Lv, M. Xing, S. Zhang, Y. Fu, J. Wu, B. Zhang and
+           L. Xie, "DCCRN: Deep Complex Convolution Recurrent Network for
+           Phase-Aware Speech Enhancement", in Proc. INTERSPEECH, 2020.
+    """
+
     def __init__(
         self,
         stft_frame_length: int = 512,

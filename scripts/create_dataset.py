@@ -44,7 +44,7 @@ def main():
         archive = tarfile.open(archive_path, 'w')
 
     # mixture maker
-    randomMixtureMaker = RandomMixtureMaker(**cfg.rmm.to_dict())
+    rand_mix_maker = RandomMixtureMaker(**cfg.rmm.to_dict())
 
     # main loop
     metadatas = []
@@ -54,19 +54,19 @@ def main():
         while duration < cfg.duration:
 
             # make mixture and save
-            mixObject, metadata = randomMixtureMaker.make()
+            mix_obj, metadata = rand_mix_maker()
             for name in cfg.sources:
                 filename = f'{i:05d}_{name}.flac'
                 if args.no_tar:
                     filepath = os.path.join(mix_dirpath, filename)
-                    sf.write(filepath, getattr(mixObject, name), cfg.rmm.fs)
+                    sf.write(filepath, getattr(mix_obj, name), cfg.rmm.fs)
                 else:
                     temp = tempfile.NamedTemporaryFile(
                         prefix='brever_',
                         suffix='.flac',
                         delete=False,
                     )
-                    sf.write(temp, getattr(mixObject, name), cfg.rmm.fs)
+                    sf.write(temp, getattr(mix_obj, name), cfg.rmm.fs)
                     temp.close()
                     arcname = os.path.join(mix_dirname, filename)
                     archive.add(temp.name, arcname=arcname)
@@ -74,7 +74,7 @@ def main():
             metadatas.append(metadata)
 
             # update duration and progress bar
-            step = len(mixObject)/cfg.rmm.fs
+            step = len(mix_obj)/cfg.rmm.fs
             pbar.update(min(step, cfg.duration - duration))
             duration += step
             i += 1

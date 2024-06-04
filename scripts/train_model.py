@@ -102,6 +102,8 @@ def main():
         max_segment_length=max_segment_length,
         tar=cfg.dataset.tar,
         transform=model.transform,
+        dynamic_mixing=cfg.dataset.dynamic_mixing,
+        dynamic_mixtures_per_epoch=cfg.dataset.dynamic_mixtures_per_epoch,
     )
     val_dataset = BreverDataset(
         path=cfg.val_path,
@@ -113,6 +115,7 @@ def main():
         max_segment_length=max_segment_length,
         tar=cfg.dataset.tar,
         transform=None,
+        dynamic_mixing=False,
     )
 
     # initialize trainer

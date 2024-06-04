@@ -27,6 +27,7 @@ class DummyDataset(BreverDataset):
         self._duration = sum(x[1][1] for x in self._segment_info)/16000
         self._effective_duration = self._duration
         self.segment_strategy = 'pass'
+        self.rmm_dset = None
 
     def __getitem__(self, index):
         if self.preloaded_data is not None:

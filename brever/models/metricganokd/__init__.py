@@ -1,1 +1,3 @@
-from .metricganokd import MetricGANOKD, MetricGANp  # noqa: F401
+from .metricganokd import MetricGANOKD, MetricGANp
+
+__all__ = ['MetricGANOKD', 'MetricGANp']

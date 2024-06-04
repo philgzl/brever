@@ -43,6 +43,8 @@ class STFT:
         self.scale_factor = scale_factor
         self.n_fft = frame_length if n_fft is None else n_fft
 
+        if window is None:
+            window = 'boxcar'
         if isinstance(window, str):
             window = functools.partial(scipy.signal.get_window, window)
         if callable(window):
@@ -197,6 +199,8 @@ class MelFilterbank:
 
 
 class ConvSTFT:
+    """STFT implementation as a convolution."""
+
     def __init__(self, frame_length=512, hop_length=256, window='hann',
                  compression_factor=1, scale_factor=1, normalized=True):
         super().__init__()

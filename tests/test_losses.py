@@ -2,12 +2,12 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from brever.criterion import CriterionRegistry
+from brever.criterion import CriterionRegistry, init_criterion
 
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 SOURCES = 4
-MIN_LENGTH = 100
-MAX_LENGTH = 200
+MIN_LENGTH = 16000
+MAX_LENGTH = 32000
 
 
 @pytest.mark.parametrize(
@@ -42,7 +42,7 @@ def test_criterion(criterion):
     ])
 
     # init criterion
-    criterion = CriterionRegistry.get(criterion)
+    criterion = init_criterion(criterion)
 
     # 2 ways of calculating: either batch processing...
     batched_losses = criterion(batched_outputs, batched_targets, lengths)

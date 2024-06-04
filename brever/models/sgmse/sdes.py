@@ -54,6 +54,17 @@ class _BaseOUVESDE(_BaseSDE):
 
 @SDERegistry.register('richter-ouve')
 class RichterOUVESDE(_BaseOUVESDE):
+    """Ornstein-Uhlenbeck Variance Exploding SDE.
+
+    Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] S. Welker, J. Richter and T. Gerkmann, "Speech Enhancement with
+           Score-Based Generative Models in the Complex STFT Domain", in Proc.
+           INTERSPEECH, 2022.
+    """
+
     def sigma(self, t):
         return self.sigma_min * (
             ((self._sigma_p**t / self.s(t))**2 - 1)
@@ -172,7 +183,18 @@ class _BaseBBSDE(_BaseSDE):
 
 @SDERegistry.register('bbed')
 class BBEDSDE(_BaseBBSDE):
-    def __init__(self, scaling=0.1, k=10, **kwargs):
+    """Brownian Bridge with Exponential Diffusion coefficient SDE.
+
+    Proposed in [1]_.
+
+    References
+    ----------
+    .. [1] B. Lay, S. Welker, J. Richter and T. Gerkmann, "Reducing the Prior
+           Mismatch of Stochastic Differential Equations for Diffusion-Based
+           Speech Enhancement", in Proc. INTERSPEECH, 2023.
+    """
+
+    def __init__(self, scaling=0.1, k=10.0, **kwargs):
         self.scaling = scaling
         self.t_max = 0.999
         self.k = k

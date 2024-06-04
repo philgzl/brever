@@ -2,7 +2,26 @@ import random
 
 import torch
 
-from brever.models import ModelRegistry, count_params
+from brever.models import ModelRegistry, count_params, set_all_weights
+
+
+def torch_randn_seed(*args, seed=0, **kwargs):
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    return torch.randn(*args, generator=generator, **kwargs)
+
+
+def torch_rand_seed(*args, seed=0, **kwargs):
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    return torch.rand(*args, generator=generator, **kwargs)
+
+
+def sample_tensor(x, n=10, seed=0):
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    idx = torch.randint(x.numel(), (n,), generator=generator)
+    return x.flatten()[idx]
 
 
 class _TestModel:
@@ -11,6 +30,8 @@ class _TestModel:
     enhance_model_kwargs = None
     latency_model_kwargs = None
     is_source_separation_network = False
+    latency = None
+    n_params = None
 
     def init_model(self, model_kwargs):
         if model_kwargs is None:
@@ -91,16 +112,38 @@ class TestDCCRN(_TestModel):
 
 
 class TestSGMSE(_TestModel):
-    model_name = 'sgmsepm'
+    model_name = 'sgmsep'
     forward_args = [
-        torch.randn(4, 1, 256, 32, dtype=torch.cfloat),
-        torch.randn(4, 1, 256, 32, dtype=torch.cfloat),
-        torch.rand(4, 1, 1, 1),
-        torch.rand(4, 1, 1, 1),
+        torch_randn_seed(4, 1, 256, 32, dtype=torch.cfloat),
+        torch_randn_seed(4, 1, 256, 32, dtype=torch.cfloat),
+        torch_rand_seed(4, 1, 1, 1),
+        torch_rand_seed(4, 1, 1, 1),
     ]
     latency = None  # TODO
     enhance_model_kwargs = {'solver_num_steps': 3}
-    n_params = 27_756_186  # same as NCSN++M in sp-uhh/sgmse/tree/icassp_2023
+    # n_params = 27_756_186  # same as NCSN++M in sp-uhh/sgmse/tree/icassp_2023 with model_name = 'sgmsepm'  # noqa: E501
+    n_params = 65_590_694    # same as NCSN++ in sp-uhh/sgmse
+
+    def test_forward(self):
+        net = self.init_model(self.forward_model_kwargs)
+        set_all_weights(net)
+        net.model.net.emb.fourier_proj.b = torch_randn_seed(
+            net.model.net.emb.fourier_proj.b.shape
+        )
+        out = net(*self.forward_args)
+        out = sample_tensor(out)
+        assert torch.allclose(out, torch.tensor([
+            -0.8220521808+0.0136900125j,
+            0.6403278708-0.1466773599j,
+            0.0641574562-0.8893111944j,
+            1.0807795525-0.0940670595j,
+            -0.6070679426-0.2562257946j,
+            0.2370606065+0.0774136111j,
+            0.6943444610-1.1398884058j,
+            0.3865116835-0.1694955975j,
+            -0.3641569018-0.5190436840j,
+            0.0308193229+0.7649886608j,
+        ]))
 
 
 class TestMetricGANOKD(_TestModel):
@@ -116,3 +159,11 @@ class TestMANNER(_TestModel):
     forward_args = [torch.randn(1, 1, 16000)]
     latency = None  # TODO
     n_params = 21_253_921
+
+
+class TestTFGridNet(_TestModel):
+    model_name = 'tfgridnet'
+    forward_args = [torch.randn(1, 2, 16000)]
+    latency = None  # TODO
+    is_source_separation_network = True
+    n_params = 3_735_344
