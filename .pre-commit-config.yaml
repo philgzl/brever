@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
     -   id: check-yaml
         args: ['--unsafe']
@@ -8,12 +8,12 @@ repos:
     -   id: trailing-whitespace
     -   id: requirements-txt-fixer
 -   repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
     -   id: isort
         name: isort (python)
 -   repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
+    rev: 7.3.0
     hooks:
     -   id: flake8
         exclude: brever/models/manner
