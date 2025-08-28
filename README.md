@@ -494,7 +494,7 @@ docker run -it --rm -v ./models:/brever/models -v ./data:/brever/data brever:lat
     author={Philippe Gonzalez and Tommy Sonne Alstrøm and Tobias May},
     journal={IEEE/ACM Transactions on Audio, Speech, and Language Processing},
     volume={31},
-    pages={3390-3403},
+    pages={3390--3403},
     year={2023},
     doi={10.1109/TASLP.2023.3318965},
 }
@@ -502,27 +502,38 @@ docker run -it --rm -v ./models:/brever/models -v ./data:/brever/data brever:lat
 @inproceedings{gonzalez2023batching,
     title={On Batching Variable Size Inputs for Training End-to-End Speech Enhancement Systems},
     author={Philippe Gonzalez and Tommy Sonne Alstrøm and Tobias May},
-    booktitle={IEEE International Conference on Acoustics, Speech and Signal Processing},
+    booktitle={IEEE International Conference on Acoustics, Speech, and Signal Processing},
     pages={1--5},
     year={2023},
     doi={10.1109/ICASSP49357.2023.10097075},
 }
 
-@misc{gonzalez2023diffusion,
+@inproceedings{gonzalez2024diffusion,
     title={Diffusion-Based Speech Enhancement in Matched and Mismatched Conditions Using a Heun-Based Sampler},
     author={Philippe Gonzalez and Zheng-Hua Tan and Jan Østergaard and Jesper Jensen and Tommy Sonne Alstrøm and Tobias May},
-    year={2023},
-    eprint={2312.02683},
-    archivePrefix={arXiv},
-    primaryClass={eess.AS},
+    booktitle={IEEE International Conference on Acoustics, Speech and, Signal Processing},
+    pages={1--5},
+    year={2024},
+    doi={10.1109/ICASSP48485.2024.10446610},
 }
 
-@misc{gonzalez2023investigating,
+@article{gonzalez2024investigating,
     title={Investigating the Design Space of Diffusion Models for Speech Enhancement},
     author={Philippe Gonzalez and Zheng-Hua Tan and Jan Østergaard and Jesper Jensen and Tommy Sonne Alstrøm and Tobias May},
-    year={2023},
-    eprint={2312.04370},
-    archivePrefix={arXiv},
-    primaryClass={eess.AS},
+    journal={IEEE/ACM Transactions on Audio, Speech, and Language Processing},
+    volume={32},
+    pages={4486--4500},
+    year={2024},
+    doi={10.1109/TASLP.2024.3473319},
+}
+
+@article{gonzalez2024effect,
+    title={The Effect of Training Dataset Size on Discriminative and Diffusion-Based Speech Enhancement Systems},
+    author={Philippe Gonzalez and Zheng-Hua Tan and Jan Østergaard and Jesper Jensen and Tommy Sonne Alstrøm and Tobias May},
+    journal={IEEE Signal Processing Letters},
+    volume={31},
+    pages={2225--2229},
+    year={2024},
+    doi={10.1109/LSP.2024.3449221},
 }
 ```
